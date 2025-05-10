@@ -1,0 +1,846 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Varsonalia - Gra Terenowa</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/leaflet.css" />
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    body {
+      background-color: #f0f0f0;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+    }
+
+    header {
+      background-color: #4B0082;
+      color: white;
+      text-align: center;
+      padding: 15px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    }
+
+    .container {
+      flex: 1;
+      padding: 20px;
+      max-width: 100%;
+      margin: 0 auto;
+    }
+
+    .team-selection {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 15px;
+      margin-bottom: 20px;
+    }
+
+    .team-btn {
+      background-color: #6a0dad;
+      color: white;
+      border: none;
+      padding: 15px;
+      font-size: 18px;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: transform 0.2s, background-color 0.3s;
+    }
+
+    .team-btn:hover {
+      background-color: #8e44ad;
+      transform: scale(1.03);
+    }
+
+    #map {
+      height: 350px;
+      width: 100%;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+
+    .tabs {
+      display: flex;
+      border-bottom: 1px solid #ddd;
+      margin-bottom: 15px;
+    }
+
+    .tab {
+      padding: 10px 15px;
+      cursor: pointer;
+      background: #eee;
+      border-radius: 5px 5px 0 0;
+      margin-right: 5px;
+    }
+
+    .tab.active {
+      background: #6a0dad;
+      color: white;
+    }
+
+    .tab-content {
+      display: none;
+      padding: 15px;
+      background: white;
+      border-radius: 0 0 8px 8px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+
+    .station-list {
+      list-style-type: none;
+    }
+
+    .station-item {
+      padding: 12px;
+      border-bottom: 1px solid #eee;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .station-number {
+      font-weight: bold;
+      background: #6a0dad;
+      color: white;
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-right: 10px;
+    }
+
+    .station-name {
+      flex: 1;
+    }
+
+    .station-status {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background-color: #ddd;
+    }
+
+    .station-status.completed {
+      background-color: #27ae60;
+    }
+
+    .bingo-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 10px;
+      margin-top: 15px;
+    }
+
+    .bingo-item {
+      background: white;
+      border: 1px solid #ddd;
+      padding: 12px 8px;
+      text-align: center;
+      border-radius: 5px;
+      font-size: 12px;
+      min-height: 80px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: background-color 0.3s;
+    }
+
+    .bingo-item.marked {
+      background-color: #9b59b6;
+      color: white;
+    }
+
+    .score-section {
+      background: white;
+      padding: 15px;
+      border-radius: 8px;
+      margin-top: 20px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+
+    .score-display {
+      font-size: 24px;
+      font-weight: bold;
+      text-align: center;
+      margin-bottom: 15px;
+    }
+
+    .admin-section {
+      margin-top: 20px;
+      padding: 15px;
+      background: #f8f8f8;
+      border-radius: 8px;
+      border: 1px dashed #ccc;
+    }
+
+    .admin-controls {
+      display: none;
+    }
+
+    input, button {
+      padding: 10px;
+      margin: 5px 0;
+      width: 100%;
+      border-radius: 5px;
+      border: 1px solid #ddd;
+    }
+
+    button {
+      background-color: #6a0dad;
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+
+    button:disabled {
+      background-color: #cccccc;
+      cursor: not-allowed;
+    }
+
+    footer {
+      text-align: center;
+      padding: 15px;
+      background-color: #4B0082;
+      color: white;
+      font-size: 0.8rem;
+      margin-top: auto;
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    .back-btn {
+      margin-bottom: 15px;
+      background-color: #555;
+    }
+
+    .team-dashboard {
+      display: none;
+    }
+
+    .team-header {
+      background: #6a0dad;
+      color: white;
+      padding: 10px;
+      text-align: center;
+      border-radius: 8px 8px 0 0;
+      margin-bottom: 15px;
+    }
+  </style>
+</head>
+<body>
+<header>
+  <h1>Varsonalia 2025</h1>
+  <p>Gra Terenowa</p>
+</header>
+
+<div class="container">
+  <!-- Strona wyboru drużyny -->
+  <div id="team-selection-page">
+    <h2>Wybierz swoją drużynę:</h2>
+    <div class="team-selection">
+      <button class="team-btn" data-team="1">Drużyna Czerwona</button>
+      <button class="team-btn" data-team="2">Drużyna Niebieska</button>
+      <button class="team-btn" data-team="3">Drużyna Zielona</button>
+      <button class="team-btn" data-team="4">Drużyna Żółta</button>
+      <button class="team-btn" data-team="5">Drużyna Fioletowa</button>
+      <button class="team-btn" data-team="6">Drużyna Pomarańczowa</button>
+    </div>
+
+    <div class="admin-section">
+      <h3>Panel Prowadzącego</h3>
+      <input type="password" id="admin-password" placeholder="Hasło prowadzącego">
+      <button id="admin-login-btn">Zaloguj</button>
+    </div>
+  </div>
+
+  <!-- Panel drużyny -->
+  <div id="team-dashboard" class="team-dashboard">
+    <div class="team-header">
+      <h2 id="team-name-display">Drużyna</h2>
+    </div>
+
+    <button class="back-btn" id="back-to-teams">← Powrót do wyboru drużyny</button>
+
+    <div class="tabs">
+      <div class="tab active" data-tab="map-tab">Mapa</div>
+      <div class="tab" data-tab="stations-tab">Stacje</div>
+      <div class="tab" data-tab="bingo-tab">Bingo</div>
+      <div class="tab" data-tab="score-tab">Punkty</div>
+    </div>
+
+    <div id="map-tab" class="tab-content active">
+      <div id="map"></div>
+      <div class="station-info">
+        <h3>Twoje stacje:</h3>
+        <ul class="station-list" id="map-station-list">
+          <!-- Stacje będą generowane dynamicznie -->
+        </ul>
+      </div>
+    </div>
+
+    <div id="stations-tab" class="tab-content">
+      <h3>Twoja kolejność stacji:</h3>
+      <ul class="station-list" id="detailed-station-list">
+        <!-- Stacje będą generowane dynamicznie -->
+      </ul>
+    </div>
+
+    <div id="bingo-tab" class="tab-content">
+      <h3>Zadania Bingo</h3>
+      <p>Kliknij na zadania, które udało Ci się wykonać między stacjami!</p>
+      <div class="bingo-grid" id="bingo-grid">
+        <!-- Zadania bingo będą generowane dynamicznie -->
+      </div>
+      <p class="score-display" id="bingo-score">Bingo: 0/25</p>
+    </div>
+
+    <div id="score-tab" class="tab-content">
+      <div class="score-section">
+        <h3>Twój wynik</h3>
+        <div class="score-display" id="total-score">0 punktów</div>
+
+        <div id="score-breakdown">
+          <p>Stacje: <span id="stations-score">0</span> pkt</p>
+          <p>Bingo: <span id="bingo-points">0</span> pkt</p>
+        </div>
+      </div>
+
+      <div class="admin-section">
+        <h3>Dodaj punkty (tylko prowadzący)</h3>
+        <input type="password" id="station-password" placeholder="Hasło prowadzącego">
+        <select id="station-select">
+          <option value="">Wybierz stację</option>
+          <!-- Opcje będą generowane dynamicznie -->
+        </select>
+        <input type="number" id="points-input" min="0" max="100" value="10" placeholder="Liczba punktów">
+        <button id="add-points-btn" disabled>Dodaj punkty</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Panel admina -->
+  <div id="admin-panel" class="hidden">
+    <button class="back-btn" id="admin-back">← Powrót do wyboru drużyny</button>
+    <h2>Panel Prowadzącego</h2>
+
+    <div class="admin-controls">
+      <h3>Status drużyn</h3>
+      <ul id="admin-team-list">
+        <!-- Lista drużyn będzie generowana dynamicznie -->
+      </ul>
+
+      <div class="admin-section">
+        <h3>Resetuj grę</h3>
+        <p>Uwaga: Ta akcja usunie wszystkie dane gry!</p>
+        <button id="reset-game-btn">Resetuj grę</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<footer>
+  <p>Varsonalia 2025 &copy; Politechnika Warszawska</p>
+</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/leaflet.js"></script>
+<script>
+  // Dane gry
+  const ADMIN_PASSWORD = "varsonalia2025"; // Hasło prowadzącego
+
+  // Stacje (lokalizacje na Polach Mokotowskich)
+  const stations = [
+    { id: 1, name: "Stacja Fontanna", description: "Zadania związane z wodą", lat: 52.2106, lng: 21.0046, points: 0 },
+    { id: 2, name: "Stacja Polana", description: "Zadania zręcznościowe", lat: 52.2116, lng: 21.0066, points: 0 },
+    { id: 3, name: "Stacja Plac zabaw", description: "Zadania logiczne", lat: 52.2095, lng: 21.0078, points: 0 },
+    { id: 4, name: "Stacja Skatepark", description: "Zadania sportowe", lat: 52.2085, lng: 21.0048, points: 0 },
+    { id: 5, name: "Stacja Park linowy", description: "Zadania artystyczne", lat: 52.2105, lng: 21.0028, points: 0 },
+    { id: 6, name: "Stacja Scena", description: "Zadania muzyczne", lat: 52.2125, lng: 21.0048, points: 0 }
+  ];
+
+  // Zadania bingo
+  const bingoTasks = [
+    "Zrób selfie z osobą w koszulce Varsonaliów",
+    "Znajdź i zrób zdjęcie najmniejszej fontanny",
+    "Przeprowadź krótki wywiad z członkiem innej drużyny",
+    "Zrób zdjęcie z maskotką wydarzenia",
+    "Ułóż akronim ze słowa STUDENT",
+    "Nagraj 10-sekundową piosenkę o Varsonaliach",
+    "Zatańcz poloneza z nieznajomym",
+    "Znajdź kogoś z takim samym kolorem butów",
+    "Upleć wianek z kwiatów lub liści",
+    "Zrób zdjęcie całej drużyny skaczącej",
+    "Wymyśl hasło reklamujące Twoją uczelnię",
+    "Zbierz 5 różnych liści",
+    "Zagraj w kółko i krzyżyk z przechodniem",
+    "Nagraj 5-sekundowy filmik ze zwolnionym tempem",
+    "Zrób zdjęcie z kimś w okularach przeciwsłonecznych",
+    "Zagraj szybką partię papier-kamień-nożyce z 3 osobami",
+    "Napisz wiersz o pogodzie",
+    "Narysuj maskotkę Varsonaliów z zamkniętymi oczami",
+    "Zagadaj do kogoś po angielsku",
+    "Zrób ludzką piramidę (min. 3 osoby)",
+    "Naśladuj dźwięk zwierzęcia przez 5 sekund",
+    "Zrób zdjęcie z najwyższą osobą, którą spotkasz",
+    "Wymyśl mema o życiu studenckim",
+    "Zrób zdjęcie z kimś, kto ma takie samo imię jak Ty",
+    "Znajdź i sfotografuj coś w kształcie serca"
+  ];
+
+  // Zmienne stanu aplikacji
+  let currentTeam = null;
+  let map = null;
+  let markers = [];
+  let teamData = {
+    1: { name: "Drużyna Czerwona", color: "#e74c3c", stationOrder: shuffleStations(), completedStations: {}, bingoMarked: {}, totalPoints: 0 },
+    2: { name: "Drużyna Niebieska", color: "#3498db", stationOrder: shuffleStations(), completedStations: {}, bingoMarked: {}, totalPoints: 0 },
+    3: { name: "Drużyna Zielona", color: "#2ecc71", stationOrder: shuffleStations(), completedStations: {}, bingoMarked: {}, totalPoints: 0 },
+    4: { name: "Drużyna Żółta", color: "#f1c40f", stationOrder: shuffleStations(), completedStations: {}, bingoMarked: {}, totalPoints: 0 },
+    5: { name: "Drużyna Fioletowa", color: "#9b59b6", stationOrder: shuffleStations(), completedStations: {}, bingoMarked: {}, totalPoints: 0 },
+    6: { name: "Drużyna Pomarańczowa", color: "#e67e22", stationOrder: shuffleStations(), completedStations: {}, bingoMarked: {}, totalPoints: 0 }
+  };
+
+  // Funkcja do losowego mieszania kolejności stacji
+  function shuffleStations() {
+    let stationIds = [1, 2, 3, 4, 5, 6];
+    for (let i = stationIds.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [stationIds[i], stationIds[j]] = [stationIds[j], stationIds[i]];
+    }
+    return stationIds;
+  }
+
+  // Inicjalizacja po załadowaniu strony
+  document.addEventListener('DOMContentLoaded', function() {
+    // Ładowanie zapisanych danych z localStorage jeśli są dostępne
+    loadGameState();
+
+    // Obsługa wyboru drużyny
+    document.querySelectorAll('.team-btn').forEach(button => {
+      button.addEventListener('click', function() {
+        const teamId = parseInt(this.getAttribute('data-team'));
+        selectTeam(teamId);
+      });
+    });
+
+    // Obsługa przycisków nawigacji
+    document.getElementById('back-to-teams').addEventListener('click', backToTeamSelection);
+    document.getElementById('admin-back').addEventListener('click', backToTeamSelection);
+
+    // Obsługa logowania admina
+    document.getElementById('admin-login-btn').addEventListener('click', loginAdmin);
+
+    // Obsługa dodawania punktów
+    document.getElementById('station-password').addEventListener('input', validateStationForm);
+    document.getElementById('station-select').addEventListener('change', validateStationForm);
+    document.getElementById('points-input').addEventListener('input', validateStationForm);
+    document.getElementById('add-points-btn').addEventListener('click', addPoints);
+
+    // Obsługa resetowania gry
+    document.getElementById('reset-game-btn').addEventListener('click', resetGame);
+
+    // Obsługa zakładek
+    document.querySelectorAll('.tab').forEach(tab => {
+      tab.addEventListener('click', function() {
+        const tabId = this.getAttribute('data-tab');
+        switchTab(tabId);
+      });
+    });
+
+    // Inicjalizacja mapy przy pierwszym przejściu do zakładki mapa
+    document.querySelector('[data-tab="map-tab"]').addEventListener('click', function() {
+      if (!map) {
+        setTimeout(initMap, 100);
+      }
+    });
+  });
+
+  // Funkcja wyboru drużyny
+  function selectTeam(teamId) {
+    currentTeam = teamId;
+
+    // Aktualizacja interfejsu
+    document.getElementById('team-selection-page').style.display = 'none';
+    document.getElementById('team-dashboard').style.display = 'block';
+    document.getElementById('admin-panel').style.display = 'none';
+
+    // Ustaw nazwę drużyny
+    document.getElementById('team-name-display').textContent = teamData[teamId].name;
+    document.documentElement.style.setProperty('--team-color', teamData[teamId].color);
+
+    // Zainicjalizuj mapę jeśli jesteśmy na zakładce mapy
+    if (document.getElementById('map-tab').classList.contains('active')) {
+      setTimeout(initMap, 100);
+    }
+
+    // Generuj listę stacji dla tej drużyny
+    generateStationLists();
+
+    // Generuj siatkę bingo
+    generateBingoGrid();
+
+    // Aktualizuj wyniki
+    updateScores();
+
+    // Generuj opcje wyboru stacji w panelu dodawania punktów
+    generateStationOptions();
+  }
+
+  // Funkcja powrotu do wyboru drużyny
+  function backToTeamSelection() {
+    document.getElementById('team-selection-page').style.display = 'block';
+    document.getElementById('team-dashboard').style.display = 'none';
+    document.getElementById('admin-panel').style.display = 'none';
+    currentTeam = null;
+
+    // Zapisz stan gry
+    saveGameState();
+  }
+
+  // Funkcja logowania administratora
+  function loginAdmin() {
+    const password = document.getElementById('admin-password').value;
+
+    if (password === ADMIN_PASSWORD) {
+      document.getElementById('team-selection-page').style.display = 'none';
+      document.getElementById('team-dashboard').style.display = 'none';
+      document.getElementById('admin-panel').style.display = 'block';
+
+      // Pokaż kontrolki admina
+      document.querySelector('.admin-controls').style.display = 'block';
+
+      // Wygeneruj listę drużyn
+      generateAdminTeamList();
+    } else {
+      alert('Niepoprawne hasło prowadzącego!');
+    }
+  }
+
+  // Funkcja generująca listę drużyn dla admina
+  function generateAdminTeamList() {
+    const teamList = document.getElementById('admin-team-list');
+    teamList.innerHTML = '';
+
+    Object.keys(teamData).forEach(teamId => {
+      const team = teamData[teamId];
+      const li = document.createElement('li');
+      li.className = 'station-item';
+
+      let completedCount = 0;
+      Object.values(team.completedStations).forEach(status => {
+        if (status) completedCount++;
+      });
+
+      let bingoCount = 0;
+      Object.values(team.bingoMarked).forEach(marked => {
+        if (marked) bingoCount++;
+      });
+
+      li.innerHTML = `
+                    <span style="color: ${team.color}">■</span>
+                    <span class="station-name">${team.name}</span>
+                    <span>Stacje: ${completedCount}/6</span>
+                    <span>Bingo: ${bingoCount}/25</span>
+                    <span>Punkty: ${team.totalPoints}</span>
+                `;
+
+      teamList.appendChild(li);
+    });
+  }
+
+  // Funkcja inicjalizująca mapę
+  function initMap() {
+    if (map) return; // Map already initialized
+
+    // Inicjalizacja mapy na Polach Mokotowskich
+    map = L.map('map').setView([52.2105, 21.0048], 16);
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© OpenStreetMap contributors'
+    }).addTo(map);
+
+    // Dodaj markery stacji
+    markers = [];
+    const teamStationOrder = teamData[currentTeam].stationOrder;
+
+    teamStationOrder.forEach((stationId, index) => {
+      const station = stations.find(s => s.id === stationId);
+      const stationNumber = index + 1;
+
+      const customIcon = L.divIcon({
+        html: `<div style="background-color: ${teamData[currentTeam].color}; color: white; border-radius: 50%; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; font-weight: bold;">${stationNumber}</div>`,
+        className: '',
+        iconSize: [30, 30]
+      });
+
+      const marker = L.marker([station.lat, station.lng], { icon: customIcon }).addTo(map);
+      marker.bindPopup(`<b>${station.name}</b><br>${station.description}<br>Stacja ${stationNumber} z 6`);
+      markers.push(marker);
+    });
+
+    // Połącz markery linią w kolejności odwiedzania
+    const coordinates = teamStationOrder.map(stationId => {
+      const station = stations.find(s => s.id === stationId);
+      return [station.lat, station.lng];
+    });
+
+    const polyline = L.polyline(coordinates, {
+      color: teamData[currentTeam].color,
+      weight: 3,
+      opacity: 0.7,
+      dashArray: '10, 10'
+    }).addTo(map);
+  }
+
+  // Funkcja generująca listę stacji
+  function generateStationLists() {
+    const mapList = document.getElementById('map-station-list');
+    const detailedList = document.getElementById('detailed-station-list');
+
+    mapList.innerHTML = '';
+    detailedList.innerHTML = '';
+
+    const teamStationOrder = teamData[currentTeam].stationOrder;
+
+    teamStationOrder.forEach((stationId, index) => {
+      const station = stations.find(s => s.id === stationId);
+      const stationNumber = index + 1;
+      const isCompleted = teamData[currentTeam].completedStations[stationId];
+      const stationPoints = station.points || 0;
+
+      // Lista na zakładce mapy
+      const mapLi = document.createElement('li');
+      mapLi.className = 'station-item';
+      mapLi.innerHTML = `
+                    <span class="station-number">${stationNumber}</span>
+                    <span class="station-name">${station.name}</span>
+                    <span class="station-status ${isCompleted ? 'completed' : ''}"></span>
+                `;
+      mapList.appendChild(mapLi);
+
+      // Szczegółowa lista na zakładce stacji
+      const detailedLi = document.createElement('li');
+      detailedLi.className = 'station-item';
+      detailedLi.innerHTML = `
+                    <span class="station-number">${stationNumber}</span>
+                    <div class="station-details">
+                        <div class="station-name">${station.name}</div>
+                        <div class="station-desc">${station.description}</div>
+                        ${isCompleted ? `<div class="station-points">Zdobyte punkty: ${teamData[currentTeam].completedStations[stationId]} pkt</div>` : ''}
+                    </div>
+                    <span class="station-status ${isCompleted ? 'completed' : ''}"></span>
+                `;
+      detailedList.appendChild(detailedLi);
+    });
+  }
+
+  // Funkcja generująca siatkę bingo
+  function generateBingoGrid() {
+    const bingoGrid = document.getElementById('bingo-grid');
+    bingoGrid.innerHTML = '';
+
+    bingoTasks.forEach((task, index) => {
+      const isMarked = teamData[currentTeam].bingoMarked[index];
+      const bingoItem = document.createElement('div');
+      bingoItem.className = `bingo-item ${isMarked ? 'marked' : ''}`;
+      bingoItem.textContent = task;
+      bingoItem.dataset.index = index;
+
+      bingoItem.addEventListener('click', toggleBingoItem);
+
+      bingoGrid.appendChild(bingoItem);
+    });
+
+    updateBingoScore();
+  }
+
+  // Funkcja przełączająca zaznaczenie elementu bingo
+  function toggleBingoItem() {
+    const index = parseInt(this.dataset.index);
+    teamData[currentTeam].bingoMarked[index] = !teamData[currentTeam].bingoMarked[index];
+
+    this.classList.toggle('marked');
+    updateBingoScore();
+    updateScores();
+
+    // Zapisz stan gry
+    saveGameState();
+  }
+
+  // Funkcja aktualizująca wynik bingo
+  function updateBingoScore() {
+    let markedCount = 0;
+    Object.values(teamData[currentTeam].bingoMarked).forEach(marked => {
+      if (marked) markedCount++;
+    });
+
+    document.getElementById('bingo-score').textContent = `Bingo: ${markedCount}/25`;
+  }
+
+  // Funkcja zmiany zakładki
+  function switchTab(tabId) {
+    // Dezaktywuj wszystkie zakładki
+    document.querySelectorAll('.tab').forEach(tab => {
+      tab.classList.remove('active');
+    });
+    document.querySelectorAll('.tab-content').forEach(content => {
+      content.classList.remove('active');
+    });
+
+    // Aktywuj wybraną zakładkę
+    document.querySelector(`[data-tab="${tabId}"]`).classList.add('active');
+    document.getElementById(tabId).classList.add('active');
+
+    // Inicjalizacja mapy jeśli potrzebna
+    if (tabId === 'map-tab' && !map) {
+      setTimeout(initMap, 100);
+    }
+  }
+
+  // Funkcja generująca opcje wyboru stacji
+  function generateStationOptions() {
+    const stationSelect = document.getElementById('station-select');
+    stationSelect.innerHTML = '<option value="">Wybierz stację</option>';
+
+    const teamStationOrder = teamData[currentTeam].stationOrder;
+
+    teamStationOrder.forEach((stationId, index) => {
+      const station = stations.find(s => s.id === stationId);
+      const stationNumber = index + 1;
+
+      const option = document.createElement('option');
+      option.value = stationId;
+      option.textContent = `${stationNumber}. ${station.name}`;
+      stationSelect.appendChild(option);
+    });
+  }
+
+  // Funkcja walidacji formularza dodawania punktów
+  function validateStationForm() {
+    const password = document.getElementById('station-password').value;
+    const stationId = document.getElementById('station-select').value;
+    const points = document.getElementById('points-input').value;
+
+    const isValid = password === ADMIN_PASSWORD && stationId && points;
+    document.getElementById('add-points-btn').disabled = !isValid;
+  }
+
+  // Funkcja dodawania punktów
+  function addPoints() {
+    const password = document.getElementById('station-password').value;
+
+    if (password !== ADMIN_PASSWORD) {
+      alert('Niepoprawne hasło prowadzącego!');
+      return;
+    }
+
+    const stationId = parseInt(document.getElementById('station-select').value);
+    const points = parseInt(document.getElementById('points-input').value);
+
+    if (!stationId || isNaN(points)) {
+      alert('Wybierz stację i podaj liczbę punktów!');
+      return;
+    }
+
+    // Dodaj punkty dla wybranej stacji
+    teamData[currentTeam].completedStations[stationId] = points;
+
+    // Aktualizuj interfejs
+    generateStationLists();
+    updateScores();
+
+    // Resetuj formularz
+    document.getElementById('station-password').value = '';
+    document.getElementById('station-select').value = '';
+    document.getElementById('points-input').value = '10';
+    document.getElementById('add-points-btn').disabled = true;
+
+    // Zapisz stan gry
+    saveGameState();
+
+    alert(`Dodano ${points} punktów dla stacji ${stationId}!`);
+  }
+
+  // Funkcja aktualizująca wyniki
+  function updateScores() {
+    let stationsScore = 0;
+    let bingoScore = 0;
+
+    // Policz punkty ze stacji
+    Object.values(teamData[currentTeam].completedStations).forEach(points => {
+      stationsScore += points;
+    });
+
+    // Policz punkty z bingo (1 punkt za każde zaznaczone pole)
+    Object.values(teamData[currentTeam].bingoMarked).forEach(marked => {
+      if (marked) bingoScore++;
+    });
+
+    // Zaktualizuj sumę punktów
+    teamData[currentTeam].totalPoints = stationsScore + bingoScore;
+
+    // Aktualizuj wyświetlanie
+    document.getElementById('stations-score').textContent = stationsScore;
+    document.getElementById('bingo-points').textContent = bingoScore;
+    document.getElementById('total-score').textContent = `${teamData[currentTeam].totalPoints} punktów`;
+  }
+
+  // Funkcja resetowania gry
+  function resetGame() {
+    if (confirm('Czy na pewno chcesz zresetować całą grę? Ta akcja nie może być cofnięta!')) {
+      // Resetuj dane drużyn
+      Object.keys(teamData).forEach(teamId => {
+        teamData[teamId].stationOrder = shuffleStations();
+        teamData[teamId].completedStations = {};
+        teamData[teamId].bingoMarked = {};
+        teamData[teamId].totalPoints = 0;
+      });
+
+      // Resetuj mapę
+      if (map) {
+        map.remove();
+        map = null;
+      }
+
+      // Zapisz zresetowany stan
+      saveGameState();
+
+      // Odśwież interfejs
+      generateAdminTeamList();
+
+      alert('Gra została zresetowana!');
+    }
+  }
+
+  // Zapisywanie stanu gry w localStorage
+  function saveGameState() {
+    localStorage.setItem('varsonaliaGameData', JSON.stringify(teamData));
+  }
+
+  // Ładowanie stanu gry z localStorage
+  function loadGameState() {
+    const savedData = localStorage.getItem('varsonaliaGameData');
+
+    if (savedData) {
+      teamData = JSON.parse(savedData);
+      console.log('Załadowano zapisany stan gry.');
+    }
+  }
+</script>
+</body>
+</html>
