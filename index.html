@@ -58,6 +58,49 @@
       transform: scale(1.03);
     }
 
+    .team-password-modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.7);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+    }
+
+    .team-password-container {
+      background: white;
+      padding: 30px;
+      border-radius: 10px;
+      text-align: center;
+      width: 90%;
+      max-width: 400px;
+    }
+
+    .team-password-container input {
+      width: 100%;
+      padding: 10px;
+      margin: 15px 0;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+    }
+
+    .team-password-container button {
+      background-color: #6a0dad;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+
+    .team-password-container button:hover {
+      background-color: #8e44ad;
+    }
+
     #map {
       height: 350px;
       width: 100%;
@@ -269,6 +312,15 @@
     </div>
   </div>
 
+  <!-- Modal hasła drużyny -->
+  <div id="team-password-modal" class="team-password-modal">
+    <div class="team-password-container">
+      <h2 id="team-password-title">Hasło drużyny</h2>
+      <input type="password" id="team-password-input" placeholder="Wprowadź hasło drużyny">
+      <button id="team-password-submit">Zatwierdź</button>
+    </div>
+  </div>
+
   <!-- Panel drużyny -->
   <div id="team-dashboard" class="team-dashboard">
     <div class="team-header">
@@ -363,27 +415,37 @@
   // Dane gry
   const ADMIN_PASSWORD = "varsonalia2025"; // Hasło prowadzącego
 
-  // Stacje (lokalizacje na Polach Mokotowskich)
+  // Hasła dla drużyn (tymczasowe)
+  const TEAM_PASSWORDS = {
+    1: "red",  // Drużyna Czerwona
+    2: "blue", // Drużyna Niebieska
+    3: "green",   // Drużyna Zielona
+    4: "yellow",     // Drużyna Żółta
+    5: "purple", // Drużyna Fioletowa
+    6: "orange" // Drużyna Pomarańczowa
+  };
+
+  // Stacje (lokalizacje na Polu Mokotowskim)
   const stations = [
-    { id: 1, name: "Stacja Fontanna", description: "Zadania związane z wodą", lat: 52.2106, lng: 21.0046, points: 0 },
-    { id: 2, name: "Stacja Polana", description: "Zadania zręcznościowe", lat: 52.2116, lng: 21.0066, points: 0 },
-    { id: 3, name: "Stacja Plac zabaw", description: "Zadania logiczne", lat: 52.2095, lng: 21.0078, points: 0 },
-    { id: 4, name: "Stacja Skatepark", description: "Zadania sportowe", lat: 52.2085, lng: 21.0048, points: 0 },
-    { id: 5, name: "Stacja Park linowy", description: "Zadania artystyczne", lat: 52.2105, lng: 21.0028, points: 0 },
-    { id: 6, name: "Stacja Scena", description: "Zadania muzyczne", lat: 52.2125, lng: 21.0048, points: 0 }
+    { id: 1, name: "Stacja PW", lat: 52.214484, lng: 21.013137, points: 0 },
+    { id: 2, name: "Escape room", lat: 52.215128, lng: 21.014872, points: 0 },
+    { id: 3, name: "Strzelaj z WAT'em", lat: 52.214367, lng: 21.011802, points: 0 },
+    { id: 4, name: "Puppy joga", lat: 52.214607, lng: 21.009114, points: 0 },
+    { id: 5, name: "Kalambury na hamakach", lat: 52.215849, lng: 21.009410, points: 0 },
+    { id: 6, name: "Stacja Juwe", lat: 52.213746, lng: 21.009683, points: 0 }
   ];
 
   // Zadania bingo
   const bingoTasks = [
     "Zrób selfie z osobą w koszulce Varsonaliów",
     "Znajdź i zrób zdjęcie najmniejszej fontanny",
-    "Przeprowadź krótki wywiad z członkiem innej drużyny",
-    "Zrób zdjęcie z maskotką wydarzenia",
-    "Ułóż akronim ze słowa STUDENT",
-    "Nagraj 10-sekundową piosenkę o Varsonaliach",
-    "Zatańcz poloneza z nieznajomym",
-    "Znajdź kogoś z takim samym kolorem butów",
-    "Upleć wianek z kwiatów lub liści",
+    "Zrób zdjęcie z członkiem innej drużyny",
+    "Zrób zdjęcie rysunku maskotki Varsonaliów",
+    "Ułóż akronim ze słowa JUWENALIA",
+    "Zdjęcie jak śpiewasz piosenki ulubionego artysty z tegorocznych Varsonaliów",
+    "Zdjęcie kogoś zakamuflowanego",
+    "Zdjęcie ze zwierzęciem",
+    "Upleć wianek z kwiatów",
     "Zrób zdjęcie całej drużyny skaczącej",
     "Wymyśl hasło reklamujące Twoją uczelnię",
     "Zbierz 5 różnych liści",
@@ -434,8 +496,22 @@
     document.querySelectorAll('.team-btn').forEach(button => {
       button.addEventListener('click', function() {
         const teamId = parseInt(this.getAttribute('data-team'));
-        selectTeam(teamId);
+        showTeamPasswordModal(teamId);
       });
+    });
+
+    // Obsługa zatwierdzenia hasła drużyny
+    document.getElementById('team-password-submit').addEventListener('click', function() {
+      const teamPasswordInput = document.getElementById('team-password-input');
+      const teamId = parseInt(document.getElementById('team-password-modal').dataset.team);
+      
+      if (teamPasswordInput.value === TEAM_PASSWORDS[teamId]) {
+        document.getElementById('team-password-modal').style.display = 'none';
+        selectTeam(teamId);
+      } else {
+        alert('Niepoprawne hasło drużyny!');
+        teamPasswordInput.value = '';
+      }
     });
 
     // Obsługa przycisków nawigacji
@@ -470,6 +546,25 @@
     });
   });
 
+  // Funkcja wyświetlania modala z hasłem drużyny
+  function showTeamPasswordModal(teamId) {
+    const modal = document.getElementById('team-password-modal');
+    const teamPasswordTitle = document.getElementById('team-password-title');
+    const teamName = {
+      1: "Czerwonej",
+      2: "Niebieskiej", 
+      3: "Zielonej",
+      4: "Żółtej",
+      5: "Fioletowej",
+      6: "Pomarańczowej"
+    }[teamId];
+
+    teamPasswordTitle.textContent = `Hasło drużyny ${teamName}`;
+    modal.dataset.team = teamId;
+    modal.style.display = 'flex';
+    document.getElementById('team-password-input').value = '';
+  }
+
   // Funkcja wyboru drużyny
   function selectTeam(teamId) {
     currentTeam = teamId;
@@ -501,11 +596,12 @@
     generateStationOptions();
   }
 
-  // Funkcja powrotu do wyboru drużyny
+  // Powrót to wyboru drużyny
   function backToTeamSelection() {
     document.getElementById('team-selection-page').style.display = 'block';
     document.getElementById('team-dashboard').style.display = 'none';
     document.getElementById('admin-panel').style.display = 'none';
+    document.getElementById('team-password-modal').style.display = 'none';
     currentTeam = null;
 
     // Zapisz stan gry
@@ -568,7 +664,7 @@
     if (map) return; // Map already initialized
 
     // Inicjalizacja mapy na Polach Mokotowskich
-    map = L.map('map').setView([52.2105, 21.0048], 16);
+    map = L.map('map').setView([52.21506704186823, 21.01251276342761], 16);
 
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '© OpenStreetMap contributors'
@@ -800,47 +896,113 @@
     document.getElementById('total-score').textContent = `${teamData[currentTeam].totalPoints} punktów`;
   }
 
-  // Funkcja resetowania gry
-  function resetGame() {
-    if (confirm('Czy na pewno chcesz zresetować całą grę? Ta akcja nie może być cofnięta!')) {
-      // Resetuj dane drużyn
-      Object.keys(teamData).forEach(teamId => {
-        teamData[teamId].stationOrder = shuffleStations();
-        teamData[teamId].completedStations = {};
-        teamData[teamId].bingoMarked = {};
-        teamData[teamId].totalPoints = 0;
-      });
-
-      // Resetuj mapę
-      if (map) {
-        map.remove();
-        map = null;
+// Function to load game state from the server
+function loadGameState() {
+  fetch('/api/game-data')
+    .then(response => {
+      if (!response.ok) {
+        throw new Error('Failed to load game data');
       }
+      return response.json();
+    })
+    .then(data => {
+      if (data && Object.keys(data).length > 0) {
+        // Update teamData with loaded data
+        teamData = data;
+        console.log('Game data loaded successfully');
+        
+        // If user is already viewing a team dashboard, refresh the UI
+        if (currentTeam) {
+          generateStationLists();
+          generateBingoGrid();
+          updateScores();
+          if (map) {
+            // Clear existing markers
+            markers.forEach(marker => map.removeLayer(marker));
+            markers = [];
+            // Reinitialize map with current team data
+            initMap();
+          }
+        }
+      } else {
+        console.log('No saved game data found');
+      }
+    })
+    .catch(error => {
+      console.error('Error loading game data:', error);
+      alert('Nie udało się załadować danych gry. Używam danych domyślnych.');
+    });
+}
 
-      // Zapisz zresetowany stan
-      saveGameState();
+// Function to save game state to the server
+function saveGameState() {
+  fetch('/api/game-data', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(teamData)
+  })
+    .then(response => {
+      if (!response.ok) {
+        throw new Error('Failed to save game data');
+      }
+      return response.json();
+    })
+    .then(result => {
+      console.log('Game data saved successfully');
+    })
+    .catch(error => {
+      console.error('Error saving game data:', error);
+      alert('Nie udało się zapisać postępu gry. Spróbuj ponownie później.');
+    });
+}
 
-      // Odśwież interfejs
-      generateAdminTeamList();
-
+// Function to reset the game (admin only)
+function resetGame() {
+  if (!confirm('Czy na pewno chcesz zresetować całą grę? Ta operacja jest nieodwracalna!')) {
+    return;
+  }
+  
+  fetch('/api/reset-game', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ adminPassword: ADMIN_PASSWORD })
+  })
+    .then(response => {
+      if (!response.ok) {
+        throw new Error('Failed to reset game');
+      }
+      return response.json();
+    })
+    .then(result => {
       alert('Gra została zresetowana!');
-    }
-  }
+      
+      // Reset local team data to default values
+      teamData = {
+        1: { name: "Drużyna Czerwona", color: "#e74c3c", stationOrder: shuffleStations(), completedStations: {}, bingoMarked: {}, totalPoints: 0 },
+        2: { name: "Drużyna Niebieska", color: "#3498db", stationOrder: shuffleStations(), completedStations: {}, bingoMarked: {}, totalPoints: 0 },
+        3: { name: "Drużyna Zielona", color: "#2ecc71", stationOrder: shuffleStations(), completedStations: {}, bingoMarked: {}, totalPoints: 0 },
+        4: { name: "Drużyna Żółta", color: "#f1c40f", stationOrder: shuffleStations(), completedStations: {}, bingoMarked: {}, totalPoints: 0 },
+        5: { name: "Drużyna Fioletowa", color: "#9b59b6", stationOrder: shuffleStations(), completedStations: {}, bingoMarked: {}, totalPoints: 0 },
+        6: { name: "Drużyna Pomarańczowa", color: "#e67e22", stationOrder: shuffleStations(), completedStations: {}, bingoMarked: {}, totalPoints: 0 }
+      };
+      
+      // Update admin panel
+      generateAdminTeamList();
+      
+      // Go back to team selection
+      backToTeamSelection();
+    })
+    .catch(error => {
+      console.error('Error resetting game:', error);
+      alert('Nie udało się zresetować gry. Sprawdź hasło administratora i spróbuj ponownie.');
+    });
+}
 
-  // Zapisywanie stanu gry w localStorage
-  function saveGameState() {
-    localStorage.setItem('varsonaliaGameData', JSON.stringify(teamData));
-  }
 
-  // Ładowanie stanu gry z localStorage
-  function loadGameState() {
-    const savedData = localStorage.getItem('varsonaliaGameData');
-
-    if (savedData) {
-      teamData = JSON.parse(savedData);
-      console.log('Załadowano zapisany stan gry.');
-    }
-  }
 </script>
 </body>
 </html>
