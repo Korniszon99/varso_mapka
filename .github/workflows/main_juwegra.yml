@@ -1,7 +1,7 @@
 # Docs for the Azure Web Apps Deploy action: https://github.com/Azure/webapps-deploy
 # More GitHub Actions for Azure: https://github.com/Azure/actions
 
-name: Build and deploy Node.js app to Azure Web App - JuweGra
+name: Build and deploy Node.js app to Azure Web App - juwegra
 
 on:
   push:
@@ -21,7 +21,7 @@ jobs:
       - name: Set up Node.js version
         uses: actions/setup-node@v3
         with:
-          node-version: '22.x'
+          node-version: '20.x'
 
       - name: npm install, build, and test
         run: |
@@ -60,15 +60,15 @@ jobs:
       - name: Login to Azure
         uses: azure/login@v2
         with:
-          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_2BEDD2D39E2F40289385BCF512EC9E80 }}
-          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_8D470921B0114D1A8796B7F75AEFAE58 }}
-          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_8B2C02EB511A4460B0AEEECBF654A1EE }}
+          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_F23354F43C4F49F1A2D246D331F707DF }}
+          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_D48A26AF01874E9796B7DC3938014A24 }}
+          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_A58A2000E7304956924DF45875138DD5 }}
 
       - name: 'Deploy to Azure Web App'
         id: deploy-to-webapp
         uses: azure/webapps-deploy@v3
         with:
-          app-name: 'JuweGra'
+          app-name: 'juwegra'
           slot-name: 'Production'
           package: .
           
