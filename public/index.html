@@ -1276,48 +1276,59 @@ function saveGameState() {
 }
 
 // Function to reset the game (admin only)
-function resetGame() {
-  if (!confirm('Czy na pewno chcesz zresetować całą grę? Ta operacja jest nieodwracalna!')) {
-    return;
+  // Funkcja do resetowania gry (tylko dla administratora)
+  function resetGame() {
+    if (!confirm('Czy na pewno chcesz zresetować całą grę? Ta operacja jest nieodwracalna!')) {
+      return;
+    }
+
+    fetch('/api/reset-game', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ adminPassword: ADMIN_PASSWORD })
+    })
+            .then(response => {
+              if (!response.ok) {
+                throw new Error('Failed to reset game');
+              }
+              return response.json();
+            })
+            .then(result => {
+              alert('Gra została zresetowana!');
+
+              // Wygeneruj nowe trasy dla drużyn
+              const teamRoutes = generateTeamRoutes();
+
+              // Reset wszystkich danych drużyn do wartości domyślnych
+              teamData = {
+                1: { name: "Drużyna Czerwona", color: "#e74c3c", completedStations: {}, bingoMarked: {}, bingoPhotos: {}, totalPoints: 0, stationOrder: teamRoutes[1] },
+                2: { name: "Drużyna Niebieska", color: "#3498db", completedStations: {}, bingoMarked: {}, bingoPhotos: {}, totalPoints: 0, stationOrder: teamRoutes[2] },
+                3: { name: "Drużyna Zielona", color: "#2ecc71", completedStations: {}, bingoMarked: {}, bingoPhotos: {}, totalPoints: 0, stationOrder: teamRoutes[3] },
+                4: { name: "Drużyna Żółta", color: "#f1c40f", completedStations: {}, bingoMarked: {}, bingoPhotos: {}, totalPoints: 0, stationOrder: teamRoutes[4] },
+                5: { name: "Drużyna Fioletowa", color: "#9b59b6", completedStations: {}, bingoMarked: {}, bingoPhotos: {}, totalPoints: 0, stationOrder: teamRoutes[5] },
+                6: { name: "Drużyna Pomarańczowa", color: "#e67e22", completedStations: {}, bingoMarked: {}, bingoPhotos: {}, totalPoints: 0, stationOrder: teamRoutes[6] }
+              };
+
+              // Resetuj mapę
+              if (map) {
+                map.remove();
+                map = null;
+                markers = [];
+              }
+
+              // Aktualizacja panelu administratora
+              generateAdminTeamList();
+
+              // Powrót do wyboru drużyny
+              backToTeamSelection();
+            })
+            .catch(error => {
+              console.error('Error resetting game:', error);
+              alert('Nie udało się zresetować gry. Sprawdź hasło administratora i spróbuj ponownie.');
+            });
   }
-  
-  fetch('/api/reset-game', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ adminPassword: ADMIN_PASSWORD })
-  })
-    .then(response => {
-      if (!response.ok) {
-        throw new Error('Failed to reset game');
-      }
-      return response.json();
-    })
-    .then(result => {
-      alert('Gra została zresetowana!');
-      
-      // Reset local team data to default values
-      teamData = {
-        1: { name: "Drużyna Czerwona", color: "#e74c3c", stationOrder: generateTeamRoutes(), completedStations: {}, bingoMarked: {}, totalPoints: 0 },
-        2: { name: "Drużyna Niebieska", color: "#3498db", stationOrder: generateTeamRoutes(), completedStations: {}, bingoMarked: {}, totalPoints: 0 },
-        3: { name: "Drużyna Zielona", color: "#2ecc71", stationOrder: generateTeamRoutes(), completedStations: {}, bingoMarked: {}, totalPoints: 0 },
-        4: { name: "Drużyna Żółta", color: "#f1c40f", stationOrder: generateTeamRoutes(), completedStations: {}, bingoMarked: {}, totalPoints: 0 },
-        5: { name: "Drużyna Fioletowa", color: "#9b59b6", stationOrder: generateTeamRoutes(), completedStations: {}, bingoMarked: {}, totalPoints: 0 },
-        6: { name: "Drużyna Pomarańczowa", color: "#e67e22", stationOrder: generateTeamRoutes(), completedStations: {}, bingoMarked: {}, totalPoints: 0 }
-      };
-      
-      // Update admin panel
-      generateAdminTeamList();
-      
-      // Go back to team selection
-      backToTeamSelection();
-    })
-    .catch(error => {
-      console.error('Error resetting game:', error);
-      alert('Nie udało się zresetować gry. Sprawdź hasło administratora i spróbuj ponownie.');
-    });
-}
 
 
 </script>
