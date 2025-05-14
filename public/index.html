@@ -487,31 +487,32 @@
   ];
 
   // Zadania bingo
+  
   const bingoTasks = [
     "Zrób selfie z osobą w koszulce Varsonaliów",
-    "Znajdź i zrób zdjęcie najmniejszej fontanny",
+    "Wymyśl okrzyk swojej drużyny",
     "Zrób zdjęcie z członkiem innej drużyny",
-    "Zrób zdjęcie rysunku maskotki Varsonaliów",
+    "Narysuj maskotkę Varsonaliów",
     "Ułóż akronim ze słowa JUWENALIA",
     "Zdjęcie jak śpiewasz piosenki ulubionego artysty z tegorocznych Varsonaliów",
     "Zdjęcie kogoś zakamuflowanego",
+    "Wymień się z kimś ubraniami (każda osoba z drużyny)",
+    "Zaproś 5 przypadkowych osób na Varsonalia",
+    "Zrób zdjęcie całej drużyny w podskoku",
+    "Wymyśl hasło reklamujące Varsonalia",
     "Zdjęcie ze zwierzęciem",
-    "Upleć wianek z kwiatów",
-    "Zrób zdjęcie całej drużyny skaczącej",
-    "Wymyśl hasło reklamujące Twoją uczelnię",
-    "Zbierz 5 różnych liści",
-    "Zagraj w kółko i krzyżyk z przechodniem",
-    "Nagraj 5-sekundowy filmik ze zwolnionym tempem",
-    "Zrób zdjęcie z kimś w okularach przeciwsłonecznych",
-    "Zagraj szybką partię papier-kamień-nożyce z 3 osobami",
-    "Napisz wiersz o pogodzie",
-    "Narysuj maskotkę Varsonaliów z zamkniętymi oczami",
-    "Zagadaj do kogoś po angielsku",
+    "ZASKOCZ NAS KREATYWNOŚCIĄ!",
+    "Znajdź kogoś ubranego na różowo",
+    "Zrób zdjęcie członka drużyny przebranego lub imitującego Mroza lub Otsochodzi",
+    "Wymyśl idealny napój na Varsonalia",
+    "Zdobądź (nie kradnij!) przedmiot od organizatorów",
+    "Zrób zdjęcie z jak największą liczbą ludzi",
+    "Odwiedź wydział IChiP",
     "Zrób ludzką piramidę (min. 3 osoby)",
-    "Naśladuj dźwięk zwierzęcia przez 5 sekund",
-    "Zrób zdjęcie z najwyższą osobą, którą spotkasz",
-    "Wymyśl mema o życiu studenckim",
-    "Zrób zdjęcie z kimś, kto ma takie samo imię jak Ty",
+    "Zrób zdjęcie kogoś w bluzie wydziału Politechniki",
+    "Stwórzcie najdłuższy łańcuch z ubrań",
+    "Wymyśl mema o Varsonaliach",
+    "Zaskocz lub przestrasz kogoś z innej drużyny",
     "Znajdź i sfotografuj coś w kształcie serca"
   ];
 
@@ -858,7 +859,7 @@
       });
 
       const marker = L.marker([station.lat, station.lng], { icon: customIcon }).addTo(map);
-      marker.bindPopup(`<b>${station.name}</b><br>${station.description}<br>Stacja ${stationNumber} z 6`);
+      marker.bindPopup(`<b>${station.name}</b><br>Stacja ${stationNumber} z 6`);
       markers.push(marker);
     });
 
@@ -909,7 +910,6 @@
                     <span class="station-number">${stationNumber}</span>
                     <div class="station-details">
                         <div class="station-name">${station.name}</div>
-                        <div class="station-desc">${station.description}</div>
                         ${isCompleted ? `<div class="station-points">Zdobyte punkty: ${teamData[currentTeam].completedStations[stationId]} pkt</div>` : ''}
                     </div>
                     <span class="station-status ${isCompleted ? 'completed' : ''}"></span>
