@@ -284,6 +284,57 @@
       border-radius: 8px 8px 0 0;
       margin-bottom: 15px;
     }
+    /* Dodaj do sekcji CSS */
+    .photo-preview {
+      max-width: 100%;
+      max-height: 200px;
+      margin: 10px 0;
+      border-radius: 5px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+    }
+
+    .bingo-photo-indicator {
+      position: absolute;
+      top: 5px;
+      right: 5px;
+      width: 16px;
+      height: 16px;
+      background-color: #3498db;
+      border-radius: 50%;
+    }
+
+    .bingo-item {
+      position: relative;
+    }
+
+    .station-password-hint {
+      font-size: 0.8rem;
+      color: #777;
+      margin-top: 5px;
+    }
+
+    #photo-upload-form {
+      display: flex;
+      flex-direction: column;
+    }
+
+    #photo-upload-form input[type="file"] {
+      margin: 15px 0;
+    }
+
+    .loading-spinner {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border: 3px solid rgba(255,255,255,.3);
+      border-radius: 50%;
+      border-top-color: #fff;
+      animation: spin 1s ease-in-out infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
   </style>
 </head>
 <body>
@@ -468,24 +519,46 @@
   let currentTeam = null;
   let map = null;
   let markers = [];
+
+
+  // Zamień funkcję shuffleStations na generateTeamRoutes
+  function generateTeamRoutes() {
+    // Generujemy trasy dla wszystkich drużyn tak, żeby się nie korkowały
+    // Każda drużyna ma inną stację początkową, ale wszystkie idą "zgodnie z ruchem wskazówek zegara"
+
+    // Przygotuj sześć różnych tras (każda zaczyna od innej stacji, ale zachowuje kolejność)
+    const routes = {};
+
+    // Bazowa kolejność stacji (zgodnie z ruchem wskazówek zegara)
+    const baseOrder = [1, 2, 3, 4, 5, 6];
+
+    // Dla każdej drużyny tworzymy trasę zaczynającą od innej stacji
+    for (let teamId = 1; teamId <= 6; teamId++) {
+      // Przesuń kolejność, aby każda drużyna zaczynała od innej stacji
+      // Można to zrozumieć jako "rotację" bazowej trasy
+      let startIndex = (teamId - 1) % 6;
+      let teamRoute = [...baseOrder.slice(startIndex), ...baseOrder.slice(0, startIndex)];
+      routes[teamId] = teamRoute;
+    }
+
+    return routes;
+  }
+
+  // Zmodyfikuj inicjalizację teamData, aby używała nowej funkcji trasy
   let teamData = {
-    1: { name: "Drużyna Czerwona", color: "#e74c3c", stationOrder: shuffleStations(), completedStations: {}, bingoMarked: {}, totalPoints: 0 },
-    2: { name: "Drużyna Niebieska", color: "#3498db", stationOrder: shuffleStations(), completedStations: {}, bingoMarked: {}, totalPoints: 0 },
-    3: { name: "Drużyna Zielona", color: "#2ecc71", stationOrder: shuffleStations(), completedStations: {}, bingoMarked: {}, totalPoints: 0 },
-    4: { name: "Drużyna Żółta", color: "#f1c40f", stationOrder: shuffleStations(), completedStations: {}, bingoMarked: {}, totalPoints: 0 },
-    5: { name: "Drużyna Fioletowa", color: "#9b59b6", stationOrder: shuffleStations(), completedStations: {}, bingoMarked: {}, totalPoints: 0 },
-    6: { name: "Drużyna Pomarańczowa", color: "#e67e22", stationOrder: shuffleStations(), completedStations: {}, bingoMarked: {}, totalPoints: 0 }
+    1: { name: "Drużyna Czerwona", color: "#e74c3c", completedStations: {}, bingoMarked: {}, bingoPhotos: {}, totalPoints: 0 },
+    2: { name: "Drużyna Niebieska", color: "#3498db", completedStations: {}, bingoMarked: {}, bingoPhotos: {}, totalPoints: 0 },
+    3: { name: "Drużyna Zielona", color: "#2ecc71", completedStations: {}, bingoMarked: {}, bingoPhotos: {}, totalPoints: 0 },
+    4: { name: "Drużyna Żółta", color: "#f1c40f", completedStations: {}, bingoMarked: {}, bingoPhotos: {}, totalPoints: 0 },
+    5: { name: "Drużyna Fioletowa", color: "#9b59b6", completedStations: {}, bingoMarked: {}, bingoPhotos: {}, totalPoints: 0 },
+    6: { name: "Drużyna Pomarańczowa", color: "#e67e22", completedStations: {}, bingoMarked: {}, bingoPhotos: {}, totalPoints: 0 }
   };
 
-  // Funkcja do losowego mieszania kolejności stacji
-  function shuffleStations() {
-    let stationIds = [1, 2, 3, 4, 5, 6];
-    for (let i = stationIds.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [stationIds[i], stationIds[j]] = [stationIds[j], stationIds[i]];
-    }
-    return stationIds;
-  }
+  // Wygeneruj trasy i przypisz je do drużyn
+  const teamRoutes = generateTeamRoutes();
+  Object.keys(teamData).forEach(teamId => {
+    teamData[teamId].stationOrder = teamRoutes[teamId];
+  });
 
   // Inicjalizacja po załadowaniu strony
   document.addEventListener('DOMContentLoaded', function() {
@@ -577,6 +650,106 @@
     // Ustaw nazwę drużyny
     document.getElementById('team-name-display').textContent = teamData[teamId].name;
     document.documentElement.style.setProperty('--team-color', teamData[teamId].color);
+
+    // Zmodyfikuj panel dodawania punktów w HTML - zakładka score-tab
+    document.getElementById('score-tab').innerHTML = `
+  <div class="score-section">
+    <h3>Twój wynik</h3>
+    <div class="score-display" id="total-score">0 punktów</div>
+
+    <div id="score-breakdown">
+      <p>Stacje: <span id="stations-score">0</span> pkt</p>
+      <p>Bingo: <span id="bingo-points">0</span> pkt</p>
+    </div>
+  </div>
+
+  <div class="admin-section">
+    <h3>Dodaj punkty (tylko prowadzący stację)</h3>
+    <select id="station-select">
+      <option value="">Wybierz stację</option>
+      <!-- Opcje będą generowane dynamicznie -->
+    </select>
+    <input type="password" id="station-password" placeholder="Hasło stacji">
+    <input type="number" id="points-input" min="0" max="100" value="10" placeholder="Liczba punktów">
+    <button id="add-points-btn">Dodaj punkty</button>
+  </div>
+`;
+
+// Dodaj stałe hasła stacji
+    const STATION_PASSWORDS = {
+      1: "stacjaPW",
+      2: "escaperoom",
+      3: "strzelaj",
+      4: "joga",
+      5: "hamaki",
+      6: "juwe"
+    };
+
+// Zmodyfikowana funkcja walidacji formularza dodawania punktów
+    function validateStationForm() {
+      const password = document.getElementById('station-password').value;
+      const stationId = document.getElementById('station-select').value;
+      const points = document.getElementById('points-input').value;
+
+      // Nie wymagamy już sprawdzania hasła admina - weryfikujemy hasło stacji
+      const isValid = stationId && points;
+      document.getElementById('add-points-btn').disabled = !isValid;
+    }
+
+// Zmodyfikowana funkcja dodawania punktów
+    function addPoints() {
+      const stationId = parseInt(document.getElementById('station-select').value);
+      const password = document.getElementById('station-password').value;
+      const points = parseInt(document.getElementById('points-input').value);
+
+      if (!stationId || isNaN(points)) {
+        alert('Wybierz stację i podaj liczbę punktów!');
+        return;
+      }
+
+      // Używamy API do weryfikacji hasła stacji
+      fetch('/api/validate-station', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          stationPassword: password,
+          teamId: currentTeam,
+          stationId: stationId,
+          points: points
+        })
+      })
+              .then(response => {
+                if (!response.ok) {
+                  throw new Error('Błąd weryfikacji stacji');
+                }
+                return response.json();
+              })
+              .then(data => {
+                // Aktualizuj lokalny stan po potwierdzeniu przez serwer
+                teamData[currentTeam].completedStations[stationId] = points;
+
+                // Aktualizuj interfejs
+                generateStationLists();
+                updateScores();
+
+                // Resetuj formularz
+                document.getElementById('station-password').value = '';
+                document.getElementById('station-select').value = '';
+                document.getElementById('points-input').value = '10';
+                document.getElementById('add-points-btn').disabled = true;
+
+                // Odświeżamy dane z serwera po pomyślnym dodaniu punktów
+                loadGameState();
+
+                alert(`Dodano ${points} punktów dla stacji ${stationId}!`);
+              })
+              .catch(error => {
+                console.error('Error adding points:', error);
+                alert('Nie udało się dodać punktów. Sprawdź hasło stacji i spróbuj ponownie.');
+              });
+    }
 
     // Zainicjalizuj mapę jeśli jesteśmy na zakładce mapy
     if (document.getElementById('map-tab').classList.contains('active')) {
@@ -765,17 +938,161 @@
     updateBingoScore();
   }
 
-  // Funkcja przełączająca zaznaczenie elementu bingo
+  // Zmodyfikowana funkcja toggleBingoItem z obsługą przesyłania zdjęć
   function toggleBingoItem() {
     const index = parseInt(this.dataset.index);
-    teamData[currentTeam].bingoMarked[index] = !teamData[currentTeam].bingoMarked[index];
 
-    this.classList.toggle('marked');
-    updateBingoScore();
-    updateScores();
+    // Jeśli element nie jest jeszcze zaznaczony, pozwól użytkownikowi przesłać zdjęcie
+    if (!teamData[currentTeam].bingoMarked[index]) {
+      showPhotoUploadModal(index);
+    } else {
+      // Jeśli jest już zaznaczony, pokaż przesłane zdjęcie
+      if (teamData[currentTeam].bingoPhotos && teamData[currentTeam].bingoPhotos[index]) {
+        showBingoPhoto(index);
+      } else {
+        // Jeśli nie ma zdjęcia (starsza wersja), po prostu odznacz
+        teamData[currentTeam].bingoMarked[index] = false;
+        this.classList.remove('marked');
+        updateBingoScore();
+        updateScores();
+        saveGameState();
+      }
+    }
+  }
 
-    // Zapisz stan gry
-    saveGameState();
+  // Funkcja pokazująca modal do przesyłania zdjęć
+  function showPhotoUploadModal(taskIndex) {
+    const task = bingoTasks[taskIndex];
+
+    // Stwórz modal
+    const modal = document.createElement('div');
+    modal.className = 'team-password-modal';
+    modal.style.display = 'flex';
+    modal.id = 'photo-upload-modal';
+
+    modal.innerHTML = `
+    <div class="team-password-container">
+      <h2>Prześlij zdjęcie</h2>
+      <p>${task}</p>
+      <form id="photo-upload-form">
+        <input type="file" id="bingo-photo" accept="image/*" capture="camera">
+        <div style="margin: 15px 0;">
+          <button type="submit" id="photo-submit">Prześlij zdjęcie</button>
+          <button type="button" id="cancel-upload">Anuluj</button>
+        </div>
+      </form>
+    </div>
+  `;
+
+    document.body.appendChild(modal);
+
+    // Obsługa anulowania
+    document.getElementById('cancel-upload').addEventListener('click', function() {
+      document.body.removeChild(modal);
+    });
+
+    // Obsługa przesyłania zdjęcia
+    document.getElementById('photo-upload-form').addEventListener('submit', function(e) {
+      e.preventDefault();
+
+      const fileInput = document.getElementById('bingo-photo');
+      if (!fileInput.files.length) {
+        alert('Wybierz zdjęcie!');
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append('bingoPhoto', fileInput.files[0]);
+
+      // Pokazuj komunikat o ładowaniu
+      const submitBtn = document.getElementById('photo-submit');
+      const cancelBtn = document.getElementById('cancel-upload');
+      submitBtn.disabled = true;
+      cancelBtn.disabled = true;
+      submitBtn.textContent = 'Wysyłanie...';
+
+      // Wyślij zdjęcie na serwer
+      fetch(`/api/upload-bingo/${currentTeam}/${taskIndex}`, {
+        method: 'POST',
+        body: formData
+      })
+              .then(response => {
+                if (!response.ok) {
+                  throw new Error('Przesyłanie zdjęcia nie powiodło się');
+                }
+                return response.json();
+              })
+              .then(data => {
+                // Zaktualizuj dane drużyny
+                teamData[currentTeam].bingoMarked[taskIndex] = true;
+
+                if (!teamData[currentTeam].bingoPhotos) {
+                  teamData[currentTeam].bingoPhotos = {};
+                }
+                teamData[currentTeam].bingoPhotos[taskIndex] = data.photoPath;
+
+                // Zaktualizuj UI
+                document.querySelector(`.bingo-item[data-index="${taskIndex}"]`).classList.add('marked');
+                updateBingoScore();
+                updateScores();
+                saveGameState();
+
+                // Zamknij modal
+                document.body.removeChild(modal);
+              })
+              .catch(error => {
+                console.error('Error uploading photo:', error);
+                alert('Nie udało się przesłać zdjęcia. Spróbuj ponownie.');
+                submitBtn.disabled = false;
+                cancelBtn.disabled = false;
+                submitBtn.textContent = 'Prześlij zdjęcie';
+              });
+    });
+  }
+
+  // Funkcja do pokazywania przesłanego wcześniej zdjęcia
+  function showBingoPhoto(taskIndex) {
+    const photoPath = teamData[currentTeam].bingoPhotos[taskIndex];
+
+    // Stwórz modal ze zdjęciem
+    const modal = document.createElement('div');
+    modal.className = 'team-password-modal';
+    modal.style.display = 'flex';
+
+    modal.innerHTML = `
+    <div class="team-password-container" style="max-width: 90%">
+      <h2>${bingoTasks[taskIndex]}</h2>
+      <div style="margin: 15px 0; max-width: 100%; overflow: hidden;">
+        <img src="${photoPath}" style="max-width: 100%; max-height: 70vh;" alt="Zdjęcie zadania">
+      </div>
+      <div>
+        <button id="remove-bingo-photo">Usuń zdjęcie i zadanie</button>
+        <button id="close-photo-modal">Zamknij</button>
+      </div>
+    </div>
+  `;
+
+    document.body.appendChild(modal);
+
+    // Obsługa zamknięcia modalu
+    document.getElementById('close-photo-modal').addEventListener('click', function() {
+      document.body.removeChild(modal);
+    });
+
+    // Obsługa usunięcia zdjęcia i odznaczenia zadania
+    document.getElementById('remove-bingo-photo').addEventListener('click', function() {
+      if (confirm('Czy na pewno chcesz usunąć to zdjęcie i odznaczyć zadanie?')) {
+        teamData[currentTeam].bingoMarked[taskIndex] = false;
+        delete teamData[currentTeam].bingoPhotos[taskIndex];
+
+        document.querySelector(`.bingo-item[data-index="${taskIndex}"]`).classList.remove('marked');
+        updateBingoScore();
+        updateScores();
+        saveGameState();
+
+        document.body.removeChild(modal);
+      }
+    });
   }
 
   // Funkcja aktualizująca wynik bingo
@@ -982,12 +1299,12 @@ function resetGame() {
       
       // Reset local team data to default values
       teamData = {
-        1: { name: "Drużyna Czerwona", color: "#e74c3c", stationOrder: shuffleStations(), completedStations: {}, bingoMarked: {}, totalPoints: 0 },
-        2: { name: "Drużyna Niebieska", color: "#3498db", stationOrder: shuffleStations(), completedStations: {}, bingoMarked: {}, totalPoints: 0 },
-        3: { name: "Drużyna Zielona", color: "#2ecc71", stationOrder: shuffleStations(), completedStations: {}, bingoMarked: {}, totalPoints: 0 },
-        4: { name: "Drużyna Żółta", color: "#f1c40f", stationOrder: shuffleStations(), completedStations: {}, bingoMarked: {}, totalPoints: 0 },
-        5: { name: "Drużyna Fioletowa", color: "#9b59b6", stationOrder: shuffleStations(), completedStations: {}, bingoMarked: {}, totalPoints: 0 },
-        6: { name: "Drużyna Pomarańczowa", color: "#e67e22", stationOrder: shuffleStations(), completedStations: {}, bingoMarked: {}, totalPoints: 0 }
+        1: { name: "Drużyna Czerwona", color: "#e74c3c", stationOrder: generateTeamRoutes(), completedStations: {}, bingoMarked: {}, totalPoints: 0 },
+        2: { name: "Drużyna Niebieska", color: "#3498db", stationOrder: generateTeamRoutes(), completedStations: {}, bingoMarked: {}, totalPoints: 0 },
+        3: { name: "Drużyna Zielona", color: "#2ecc71", stationOrder: generateTeamRoutes(), completedStations: {}, bingoMarked: {}, totalPoints: 0 },
+        4: { name: "Drużyna Żółta", color: "#f1c40f", stationOrder: generateTeamRoutes(), completedStations: {}, bingoMarked: {}, totalPoints: 0 },
+        5: { name: "Drużyna Fioletowa", color: "#9b59b6", stationOrder: generateTeamRoutes(), completedStations: {}, bingoMarked: {}, totalPoints: 0 },
+        6: { name: "Drużyna Pomarańczowa", color: "#e67e22", stationOrder: generateTeamRoutes(), completedStations: {}, bingoMarked: {}, totalPoints: 0 }
       };
       
       // Update admin panel
