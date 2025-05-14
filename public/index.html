@@ -431,7 +431,7 @@
           <option value="">Wybierz stację</option>
           <!-- Opcje będą generowane dynamicznie -->
         </select>
-        <input type="number" id="points-input" min="0" max="100" value="10" placeholder="Liczba punktów">
+        <input type="number" id="points-input" min="0" max="10" value="5" placeholder="Liczba punktów">
         <button id="add-points-btn" disabled>Dodaj punkty</button>
       </div>
     </div>
@@ -676,81 +676,17 @@
   </div>
 `;
 
-// Dodaj stałe hasła stacji
-    const STATION_PASSWORDS = {
-      1: "stacjaPW",
-      2: "escaperoom",
-      3: "strzelaj",
-      4: "joga",
-      5: "hamaki",
-      6: "juwe"
-    };
 
-// Zmodyfikowana funkcja walidacji formularza dodawania punktów
-    function validateStationForm() {
-      const password = document.getElementById('station-password').value;
-      const stationId = document.getElementById('station-select').value;
-      const points = document.getElementById('points-input').value;
 
-      // Nie wymagamy już sprawdzania hasła admina - weryfikujemy hasło stacji
-      const isValid = stationId && points;
-      document.getElementById('add-points-btn').disabled = !isValid;
-    }
+    document.getElementById('station-password').addEventListener('input', validateStationForm);
+    document.getElementById('station-select').addEventListener('change', validateStationForm);
+    document.getElementById('points-input').addEventListener('input', validateStationForm);
+    document.getElementById('add-points-btn').addEventListener('click', addPoints);
+
+
 
 // Zmodyfikowana funkcja dodawania punktów
-    function addPoints() {
-      const stationId = parseInt(document.getElementById('station-select').value);
-      const password = document.getElementById('station-password').value;
-      const points = parseInt(document.getElementById('points-input').value);
 
-      if (!stationId || isNaN(points)) {
-        alert('Wybierz stację i podaj liczbę punktów!');
-        return;
-      }
-
-      // Używamy API do weryfikacji hasła stacji
-      fetch('/api/validate-station', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          stationPassword: password,
-          teamId: currentTeam,
-          stationId: stationId,
-          points: points
-        })
-      })
-              .then(response => {
-                if (!response.ok) {
-                  throw new Error('Błąd weryfikacji stacji');
-                }
-                return response.json();
-              })
-              .then(data => {
-                // Aktualizuj lokalny stan po potwierdzeniu przez serwer
-                teamData[currentTeam].completedStations[stationId] = points;
-
-                // Aktualizuj interfejs
-                generateStationLists();
-                updateScores();
-
-                // Resetuj formularz
-                document.getElementById('station-password').value = '';
-                document.getElementById('station-select').value = '';
-                document.getElementById('points-input').value = '10';
-                document.getElementById('add-points-btn').disabled = true;
-
-                // Odświeżamy dane z serwera po pomyślnym dodaniu punktów
-                loadGameState();
-
-                alert(`Dodano ${points} punktów dla stacji ${stationId}!`);
-              })
-              .catch(error => {
-                console.error('Error adding points:', error);
-                alert('Nie udało się dodać punktów. Sprawdź hasło stacji i spróbuj ponownie.');
-              });
-    }
 
     // Zainicjalizuj mapę jeśli jesteśmy na zakładce mapy
     if (document.getElementById('map-tab').classList.contains('active')) {
@@ -877,46 +813,7 @@
     }).addTo(map);
   }
 
-  // Funkcja generująca listę stacji
-  function generateStationLists() {
-    const mapList = document.getElementById('map-station-list');
-    const detailedList = document.getElementById('detailed-station-list');
 
-    mapList.innerHTML = '';
-    detailedList.innerHTML = '';
-
-    const teamStationOrder = teamData[currentTeam].stationOrder;
-
-    teamStationOrder.forEach((stationId, index) => {
-      const station = stations.find(s => s.id === stationId);
-      const stationNumber = index + 1;
-      const isCompleted = teamData[currentTeam].completedStations[stationId];
-      const stationPoints = station.points || 0;
-
-      // Lista na zakładce mapy
-      const mapLi = document.createElement('li');
-      mapLi.className = 'station-item';
-      mapLi.innerHTML = `
-                    <span class="station-number">${stationNumber}</span>
-                    <span class="station-name">${station.name}</span>
-                    <span class="station-status ${isCompleted ? 'completed' : ''}"></span>
-                `;
-      mapList.appendChild(mapLi);
-
-      // Szczegółowa lista na zakładce stacji
-      const detailedLi = document.createElement('li');
-      detailedLi.className = 'station-item';
-      detailedLi.innerHTML = `
-                    <span class="station-number">${stationNumber}</span>
-                    <div class="station-details">
-                        <div class="station-name">${station.name}</div>
-                        ${isCompleted ? `<div class="station-points">Zdobyte punkty: ${teamData[currentTeam].completedStations[stationId]} pkt</div>` : ''}
-                    </div>
-                    <span class="station-status ${isCompleted ? 'completed' : ''}"></span>
-                `;
-      detailedList.appendChild(detailedLi);
-    });
-  }
 
   // Funkcja generująca siatkę bingo
   function generateBingoGrid() {
@@ -1143,119 +1040,227 @@
     });
   }
 
-  // Funkcja walidacji formularza dodawania punktów
+
+
+
+
+
+
+  // Pomocnicza funkcja do przeliczania punktów drużyny
+  function calculateTeamPoints() {
+    const team = teamData[currentTeam];
+    let totalPoints = 0;
+
+    // Punkty ze stacji
+    if (team.completedStations) {
+      Object.values(team.completedStations).forEach(points => {
+        if (typeof points === 'number') {
+          totalPoints += points;
+        }
+      });
+    }
+
+    // Punkty z bingo (1 punkt za każde zaznaczone pole)
+    if (team.bingoMarked) {
+      Object.values(team.bingoMarked).forEach(marked => {
+        if (marked) totalPoints++;
+      });
+    }
+
+    // Aktualizuj całkowitą liczbę punktów
+    team.totalPoints = totalPoints;
+  }
+
+  // Dodaj stałe hasła stacji
+  const STATION_PASSWORDS = {
+    1: "stacjaPW",
+    2: "escaperoom",
+    3: "strzelaj",
+    4: "joga",
+    5: "hamaki",
+    6: "juwe"
+  };
+
+  // Zmodyfikowana funkcja walidacji formularza dodawania punktów
   function validateStationForm() {
-    const password = document.getElementById('station-password').value;
     const stationId = document.getElementById('station-select').value;
+    const stationPassword = document.getElementById('station-password').value;
     const points = document.getElementById('points-input').value;
 
-    const isValid = password === ADMIN_PASSWORD && stationId && points;
-    document.getElementById('add-points-btn').disabled = !isValid;
+    // Włącz przycisk tylko jeśli wszystkie pola są wypełnione
+    document.getElementById('add-points-btn').disabled = !(stationId && stationPassword && points);
   }
 
-  // Funkcja dodawania punktów
+  // Zmodyfikowana funkcja dodawania punktów
   function addPoints() {
-    const password = document.getElementById('station-password').value;
-
-    if (password !== ADMIN_PASSWORD) {
-      alert('Niepoprawne hasło prowadzącego!');
-      return;
-    }
-
     const stationId = parseInt(document.getElementById('station-select').value);
+    const stationPassword = document.getElementById('station-password').value;
     const points = parseInt(document.getElementById('points-input').value);
 
-    if (!stationId || isNaN(points)) {
-      alert('Wybierz stację i podaj liczbę punktów!');
+    if (!stationId || isNaN(points) || !stationPassword) {
+      alert('Wybierz stację, podaj hasło stacji i liczbę punktów!');
       return;
     }
 
-    // Dodaj punkty dla wybranej stacji
-    teamData[currentTeam].completedStations[stationId] = points;
+    // Dodaj komunikat do debugowania
+    console.log('Wysyłam dane:', {
+      stationId,
+      stationPassword,
+      points,
+      teamId: currentTeam
+    });
 
-    // Aktualizuj interfejs
-    generateStationLists();
-    updateScores();
+    // Dezaktywuj przycisk podczas przetwarzania
+    const addPointsBtn = document.getElementById('add-points-btn');
+    addPointsBtn.disabled = true;
+    addPointsBtn.innerHTML = '<span class="loading-spinner"></span> Wysyłanie...';
 
-    // Resetuj formularz
-    document.getElementById('station-password').value = '';
-    document.getElementById('station-select').value = '';
-    document.getElementById('points-input').value = '10';
-    document.getElementById('add-points-btn').disabled = true;
-
-    // Zapisz stan gry
-    saveGameState();
-
-    alert(`Dodano ${points} punktów dla stacji ${stationId}!`);
+    fetch('/api/validate-station', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        stationPassword: stationPassword,
+        teamId: currentTeam,
+        stationId: stationId,
+        points: points
+      })
+    })
+            .then(response => {
+              console.log('Status odpowiedzi:', response.status);
+              return response.json();
+            })
+            .then(data => {
+              console.log('Dane odpowiedzi:', data);
+              if (data.success) {
+                alert(data.message || `Dodano ${points} punktów za stację ${stationId}!`);
+                loadGameState();
+                document.getElementById('station-password').value = '';
+                document.getElementById('points-input').value = '10';
+                document.getElementById('station-select').value = '';
+              } else {
+                alert(data.error || 'Nie udało się dodać punktów. Sprawdź hasło stacji.');
+              }
+            })
+            .catch(error => {
+              console.error('Błąd podczas dodawania punktów:', error);
+              alert('Wystąpił błąd podczas komunikacji z serwerem.');
+            })
+            .finally(() => {
+              addPointsBtn.disabled = false;
+              addPointsBtn.textContent = 'Dodaj punkty';
+            });
   }
 
-  // Funkcja aktualizująca wyniki
+  // Zaktualizowana funkcja generująca listę stacji
+  function generateStationLists() {
+    const mapList = document.getElementById('map-station-list');
+    const detailedList = document.getElementById('detailed-station-list');
+
+    mapList.innerHTML = '';
+    detailedList.innerHTML = '';
+
+    const teamStationOrder = teamData[currentTeam].stationOrder;
+
+    teamStationOrder.forEach((stationId, index) => {
+      const station = stations.find(s => s.id === stationId);
+      const stationNumber = index + 1;
+      const isCompleted = teamData[currentTeam].completedStations &&
+              teamData[currentTeam].completedStations[stationId];
+      const earnedPoints = isCompleted ? teamData[currentTeam].completedStations[stationId] : 0;
+
+      // Lista na zakładce mapy
+      const mapLi = document.createElement('li');
+      mapLi.className = 'station-item';
+      mapLi.innerHTML = `
+      <span class="station-number">${stationNumber}</span>
+      <span class="station-name">${station.name}</span>
+      <span class="station-status ${isCompleted ? 'completed' : ''}"></span>
+    `;
+      mapList.appendChild(mapLi);
+
+      // Szczegółowa lista na zakładce stacji
+      const detailedLi = document.createElement('li');
+      detailedLi.className = 'station-item';
+      detailedLi.innerHTML = `
+      <span class="station-number">${stationNumber}</span>
+      <div class="station-details">
+        <div class="station-name">${station.name}</div>
+        ${isCompleted ? `<div class="station-points">Zdobyte punkty: ${earnedPoints} pkt</div>` : ''}
+        ${!isCompleted ? `<div class="station-password-hint">Podejdź do stacji, aby zdobyć punkty</div>` : ''}
+      </div>
+      <span class="station-status ${isCompleted ? 'completed' : ''}"></span>
+    `;
+      detailedList.appendChild(detailedLi);
+    });
+  }
+
+  // Zmodyfikowana funkcja aktualizująca wyniki
   function updateScores() {
+    if (!teamData[currentTeam]) return;
+
     let stationsScore = 0;
     let bingoScore = 0;
 
     // Policz punkty ze stacji
-    Object.values(teamData[currentTeam].completedStations).forEach(points => {
-      stationsScore += points;
-    });
+    if (teamData[currentTeam].completedStations) {
+      Object.values(teamData[currentTeam].completedStations).forEach(points => {
+        if (typeof points === 'number') {
+          stationsScore += points;
+        }
+      });
+    }
 
     // Policz punkty z bingo (1 punkt za każde zaznaczone pole)
-    Object.values(teamData[currentTeam].bingoMarked).forEach(marked => {
-      if (marked) bingoScore++;
-    });
+    if (teamData[currentTeam].bingoMarked) {
+      Object.values(teamData[currentTeam].bingoMarked).forEach(marked => {
+        if (marked) bingoScore++;
+      });
+    }
 
-    // Zaktualizuj sumę punktów
+    // Aktualizuj całkowitą liczbę punktów dla drużyny
     teamData[currentTeam].totalPoints = stationsScore + bingoScore;
 
     // Aktualizuj wyświetlanie
+    document.getElementById('total-score').textContent = `${teamData[currentTeam].totalPoints} punktów`;
     document.getElementById('stations-score').textContent = stationsScore;
     document.getElementById('bingo-points').textContent = bingoScore;
-    document.getElementById('total-score').textContent = `${teamData[currentTeam].totalPoints} punktów`;
+
+    // Zapisz zaktualizowany stan gry
+    saveGameState();
   }
 
 // Function to load game state from the server
-  // Function to load game state from the server
+  // Funkcja do ładowania stanu gry z serwera
   function loadGameState() {
     fetch('/api/game-data')
             .then(response => {
               if (!response.ok) {
-                throw new Error('Failed to load game data');
+                throw new Error('Nie udało się pobrać danych gry');
               }
               return response.json();
             })
             .then(data => {
               if (data && Object.keys(data).length > 0) {
+                // Aktualizuj dane gry
                 teamData = data;
 
-                // Jeśli jesteśmy w panelu drużyny, zaktualizuj interfejs
+                // Jeśli jesteśmy na panelu drużyny, zaktualizuj interfejs
                 if (currentTeam) {
                   generateStationLists();
                   generateBingoGrid();
                   updateScores();
-
-                  // Odśwież mapę jeśli istnieje
-                  if (map) {
-                    map.remove();
-                    map = null;
-                    markers = [];
-                    if (document.getElementById('map-tab').classList.contains('active')) {
-                      setTimeout(initMap, 100);
-                    }
-                  }
                 }
 
-                // Jeśli jesteśmy w panelu administratora, zaktualizuj listy drużyn
+                // Jeśli jesteśmy na panelu admina, zaktualizuj listę drużyn
                 if (document.getElementById('admin-panel').style.display !== 'none') {
                   generateAdminTeamList();
                 }
-
-                console.log('Dane gry załadowane z serwera');
-              } else {
-                console.warn('Brak danych na serwerze lub dane są puste');
               }
             })
             .catch(error => {
-              console.error('Error loading game data:', error);
+              console.error('Błąd podczas ładowania danych gry:', error);
             });
   }
 
