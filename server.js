@@ -59,14 +59,53 @@ app.post('/api/game-data', (req, res) => {
 app.post('/api/reset-game', (req, res) => {
   const { adminPassword } = req.body;
   const ADMIN_PASSWORD = "varsonalia2025"; // To powinno być przechowywane w zmiennych środowiskowych
-  
+
   if (adminPassword !== ADMIN_PASSWORD) {
     return res.status(401).json({ error: 'Nieautoryzowany dostęp' });
   }
-  
+
   try {
-    const initialData = {};
+    // Generujemy nowe trasy dla wszystkich drużyn
+    const baseOrder = [1, 2, 3, 4, 5, 6];
+    const routes = {};
+
+    // Dla każdej drużyny tworzymy trasę zaczynającą od innej stacji
+    for (let teamId = 1; teamId <= 6; teamId++) {
+      let startIndex = (teamId - 1) % 6;
+      let teamRoute = [...baseOrder.slice(startIndex), ...baseOrder.slice(0, startIndex)];
+      routes[teamId] = teamRoute;
+    }
+
+    // Tworzymy nowy, pusty obiekt z prawidłową strukturą
+    const initialData = {
+      1: { name: "Drużyna Czerwona", color: "#e74c3c", completedStations: {}, bingoMarked: {}, bingoPhotos: {}, totalPoints: 0, stationOrder: routes[1] },
+      2: { name: "Drużyna Niebieska", color: "#3498db", completedStations: {}, bingoMarked: {}, bingoPhotos: {}, totalPoints: 0, stationOrder: routes[2] },
+      3: { name: "Drużyna Zielona", color: "#2ecc71", completedStations: {}, bingoMarked: {}, bingoPhotos: {}, totalPoints: 0, stationOrder: routes[3] },
+      4: { name: "Drużyna Żółta", color: "#f1c40f", completedStations: {}, bingoMarked: {}, bingoPhotos: {}, totalPoints: 0, stationOrder: routes[4] },
+      5: { name: "Drużyna Fioletowa", color: "#9b59b6", completedStations: {}, bingoMarked: {}, bingoPhotos: {}, totalPoints: 0, stationOrder: routes[5] },
+      6: { name: "Drużyna Pomarańczowa", color: "#e67e22", completedStations: {}, bingoMarked: {}, bingoPhotos: {}, totalPoints: 0, stationOrder: routes[6] }
+    };
+
+    // Zapisujemy dane początkowe
     fs.writeFileSync(DATA_FILE, JSON.stringify(initialData), 'utf8');
+
+    // Usuwamy wszystkie zdjęcia bingo
+    const uploadsDir = path.join(__dirname, 'public', 'uploads');
+    if (fs.existsSync(uploadsDir)) {
+      for (let teamId = 1; teamId <= 6; teamId++) {
+        const teamDir = path.join(uploadsDir, teamId.toString());
+        if (fs.existsSync(teamDir)) {
+          fs.readdirSync(teamDir).forEach(file => {
+            try {
+              fs.unlinkSync(path.join(teamDir, file));
+            } catch (err) {
+              console.error(`Błąd podczas usuwania pliku ${file}:`, err);
+            }
+          });
+        }
+      }
+    }
+
     res.json({ success: true, message: 'Gra została zresetowana' });
   } catch (error) {
     console.error('Error resetting game:', error);

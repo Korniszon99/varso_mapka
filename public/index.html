@@ -1214,42 +1214,50 @@
   }
 
 // Function to load game state from the server
-function loadGameState() {
-  fetch('/api/game-data')
-    .then(response => {
-      if (!response.ok) {
-        throw new Error('Failed to load game data');
-      }
-      return response.json();
-    })
-    .then(data => {
-      if (data && Object.keys(data).length > 0) {
-        // Update teamData with loaded data
-        teamData = data;
-        console.log('Game data loaded successfully');
-        
-        // If user is already viewing a team dashboard, refresh the UI
-        if (currentTeam) {
-          generateStationLists();
-          generateBingoGrid();
-          updateScores();
-          if (map) {
-            // Clear existing markers
-            markers.forEach(marker => map.removeLayer(marker));
-            markers = [];
-            // Reinitialize map with current team data
-            initMap();
-          }
-        }
-      } else {
-        console.log('No saved game data found');
-      }
-    })
-    .catch(error => {
-      console.error('Error loading game data:', error);
-      alert('Nie udało się załadować danych gry. Używam danych domyślnych.');
-    });
-}
+  // Function to load game state from the server
+  function loadGameState() {
+    fetch('/api/game-data')
+            .then(response => {
+              if (!response.ok) {
+                throw new Error('Failed to load game data');
+              }
+              return response.json();
+            })
+            .then(data => {
+              if (data && Object.keys(data).length > 0) {
+                teamData = data;
+
+                // Jeśli jesteśmy w panelu drużyny, zaktualizuj interfejs
+                if (currentTeam) {
+                  generateStationLists();
+                  generateBingoGrid();
+                  updateScores();
+
+                  // Odśwież mapę jeśli istnieje
+                  if (map) {
+                    map.remove();
+                    map = null;
+                    markers = [];
+                    if (document.getElementById('map-tab').classList.contains('active')) {
+                      setTimeout(initMap, 100);
+                    }
+                  }
+                }
+
+                // Jeśli jesteśmy w panelu administratora, zaktualizuj listy drużyn
+                if (document.getElementById('admin-panel').style.display !== 'none') {
+                  generateAdminTeamList();
+                }
+
+                console.log('Dane gry załadowane z serwera');
+              } else {
+                console.warn('Brak danych na serwerze lub dane są puste');
+              }
+            })
+            .catch(error => {
+              console.error('Error loading game data:', error);
+            });
+  }
 
 // Function to save game state to the server
 function saveGameState() {
@@ -1329,7 +1337,8 @@ function saveGameState() {
               alert('Nie udało się zresetować gry. Sprawdź hasło administratora i spróbuj ponownie.');
             });
   }
-
+  // Automatyczne odświeżanie danych z serwera co 10 sekund
+  setInterval(loadGameState, 10000);
 
 </script>
 </body>
