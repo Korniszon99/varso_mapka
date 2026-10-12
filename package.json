@@ -4,14 +4,14 @@
   "description": "Aplikacja do gry terenowej Varsonalia",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "test": "node --test"
   },
   "engines": {
-    "node": "~20"
+    "node": ">=22 <25"
   },
   "dependencies": {
-    "cors": "^2.8.5",
-    "express": "^5.1.0",
-    "multer": "^1.4.5-lts.2"
+    "express": "^5.3.0",
+    "multer": "^2.4.0"
   }
 }

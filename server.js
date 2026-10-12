@@ -1,6 +1,6 @@
 // server.js - Prosty serwer Node.js do obsługi danych gry Varsonalia
 const express = require('express');
-const cors = require('cors');
+const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 const multer = require('multer');
@@ -8,16 +8,63 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Middleware
-app.use(cors());
-app.use(express.json());
-app.use(express.static('public'));
+app.disable('x-powered-by');
+app.use((req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+  next();
+});
+app.use(express.json({ limit: '256kb' }));
+app.use(express.static(path.join(__dirname, 'public')));
+
+// Short-lived bearer sessions stay in browser memory, never in the source or URL.
+const sessions = new Map();
+const loginAttempts = new Map();
+function passwordMatches(actual, expected) {
+  if (typeof actual !== 'string' || !expected || actual.length > 256) return false;
+  const a = crypto.createHash('sha256').update(actual).digest();
+  const b = crypto.createHash('sha256').update(expected).digest();
+  return crypto.timingSafeEqual(a, b);
+}
+function authentication(req, res, next) {
+  const session = sessions.get((req.headers.authorization || '').replace(/^Bearer /, ''));
+  if (!session || session.expires <= Date.now()) return res.status(401).json({ error: 'Zaloguj się ponownie' });
+  req.session = session;
+  next();
+}
+function teamOrAdmin(req, res, next) {
+  if (!/^[1-6]$/.test(req.params.teamId) || !/^(?:[0-9]|1[0-9]|2[0-4])$/.test(req.params.taskId)) {
+    return res.status(400).json({ error: 'Nieprawidłowy identyfikator' });
+  }
+  if (req.session.role !== 'admin' && String(req.session.teamId) !== req.params.teamId) {
+    return res.status(403).json({ error: 'Brak dostępu do drużyny' });
+  }
+  next();
+}
+app.post('/api/login', (req, res) => {
+  const now = Date.now();
+  for (const [ip, entry] of loginAttempts) if (entry.until <= now) loginAttempts.delete(ip);
+  for (const [token, session] of sessions) if (session.expires <= now) sessions.delete(token);
+  if (loginAttempts.size > 10000 || sessions.size > 10000) return res.sendStatus(503);
+  const attempts = loginAttempts.get(req.ip) || { count: 0, until: now + 60000 };
+  loginAttempts.set(req.ip, attempts);
+  if (++attempts.count > 10) return res.status(429).json({ error: 'Spróbuj za minutę' });
+  const { role, teamId, password } = req.body;
+  if (role !== 'admin' && (role !== 'team' || !/^[1-6]$/.test(String(teamId)))) return res.sendStatus(400);
+  const expected = process.env[role === 'admin' ? 'ADMIN_PASSWORD' : `TEAM_${teamId}_PASSWORD`];
+  if (!passwordMatches(password, expected)) return res.sendStatus(401);
+  const token = crypto.randomBytes(32).toString('hex');
+  sessions.set(token, { role, teamId, expires: now + 8 * 60 * 60 * 1000 });
+  res.json({ token });
+});
 
 // Ścieżka do pliku JSON z danymi gry
-const DATA_FILE = path.join(__dirname, 'data', 'gameData.json');
+const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, 'data');
+const DATA_FILE = path.join(DATA_DIR, 'gameData.json');
 
 // Upewnij się, że katalog data istnieje
-if (!fs.existsSync(path.join(__dirname, 'data'))) {
-  fs.mkdirSync(path.join(__dirname, 'data'));
+if (!fs.existsSync(DATA_DIR)) {
+  fs.mkdirSync(DATA_DIR, { recursive: true });
 }
 
 // Inicjalizacja pliku z danymi jeśli nie istnieje
@@ -38,9 +85,23 @@ app.get('/api/game-data', (req, res) => {
 });
 
 // Endpoint do zapisywania danych gry
-app.post('/api/game-data', (req, res) => {
+app.post('/api/game-data', authentication, (req, res) => {
   try {
-    const gameData = req.body;
+    let gameData;
+    if (req.session.role === 'admin') {
+      gameData = req.body;
+      if (!gameData || Array.isArray(gameData) || Object.keys(gameData).some(id => !/^[1-6]$/.test(id))) {
+        return res.status(400).json({ error: 'Nieprawidłowe drużyny' });
+      }
+    } else {
+      gameData = JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
+      const id = req.session.teamId;
+      if (!gameData[id] || !req.body[id]) return res.sendStatus(400);
+      const marked = req.body[id].bingoMarked;
+      if (!marked || Array.isArray(marked) || typeof marked !== 'object' || Object.entries(marked).some(([k, v]) => !/^(?:[0-9]|1[0-9]|2[0-4])$/.test(k) || typeof v !== 'boolean')) return res.sendStatus(400);
+      gameData[id].bingoMarked = marked;
+      gameData[id].totalPoints = calculateTotalPoints(gameData[id]);
+    }
     
     // Opcjonalna walidacja danych
     if (!gameData || typeof gameData !== 'object') {
@@ -56,13 +117,8 @@ app.post('/api/game-data', (req, res) => {
 });
 
 // Endpoint do resetowania gry (tylko dla administratora)
-app.post('/api/reset-game', (req, res) => {
-  const { adminPassword } = req.body;
-  const ADMIN_PASSWORD = "varsonalia2025"; // To powinno być przechowywane w zmiennych środowiskowych
-
-  if (adminPassword !== ADMIN_PASSWORD) {
-    return res.status(401).json({ error: 'Nieautoryzowany dostęp' });
-  }
+app.post('/api/reset-game', authentication, (req, res) => {
+  if (req.session.role !== 'admin') return res.sendStatus(403);
 
   try {
     // Generujemy nowe trasy dla wszystkich drużyn
@@ -130,7 +186,7 @@ const storage = multer.diskStorage({
   },
   filename: function(req, file, cb) {
     const taskId = req.params.taskId;
-    const extension = path.extname(file.originalname);
+    const extension = { 'image/jpeg': '.jpg', 'image/png': '.png', 'image/webp': '.webp' }[file.mimetype];
     cb(null, `task_${taskId}${extension}`);
   }
 });
@@ -139,7 +195,7 @@ const upload = multer({
   storage: storage,
   limits: { fileSize: 5 * 1024 * 1024 }, // Limit 5MB
   fileFilter: (req, file, cb) => {
-    if (file.mimetype.startsWith('image/')) {
+    if (['image/jpeg', 'image/png', 'image/webp'].includes(file.mimetype)) {
       cb(null, true);
     } else {
       cb(new Error('Tylko pliki obrazów są dozwolone!'), false);
@@ -148,7 +204,7 @@ const upload = multer({
 });
 
 // Endpoint do przesyłania zdjęć z zadaniami bingo
-app.post('/api/upload-bingo/:teamId/:taskId', upload.single('bingoPhoto'), (req, res) => {
+app.post('/api/upload-bingo/:teamId/:taskId', authentication, teamOrAdmin, upload.single('bingoPhoto'), (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ error: 'Brak pliku' });
@@ -156,6 +212,11 @@ app.post('/api/upload-bingo/:teamId/:taskId', upload.single('bingoPhoto'), (req,
 
     const teamId = req.params.teamId;
     const taskId = req.params.taskId;
+    const signature = fs.readFileSync(req.file.path);
+    const isImage = (signature[0] === 0xff && signature[1] === 0xd8 && signature[2] === 0xff)
+      || signature.subarray(0, 8).equals(Buffer.from([137,80,78,71,13,10,26,10]))
+      || (signature.subarray(0,4).toString() === 'RIFF' && signature.subarray(8,12).toString() === 'WEBP');
+    if (!isImage) { fs.unlinkSync(req.file.path); return res.status(400).json({ error: 'Nieprawidłowy obraz' }); }
 
     // Aktualizujemy dane gry, by oznaczyć zadanie jako wykonane z załączonym zdjęciem
     const gameDataRaw = fs.readFileSync(DATA_FILE, 'utf8');
@@ -167,13 +228,14 @@ app.post('/api/upload-bingo/:teamId/:taskId', upload.single('bingoPhoto'), (req,
 
     // Ustaw jako wykonane i zapisz ścieżkę do zdjęcia
     gameData[teamId].bingoMarked[taskId] = true;
+    gameData[teamId].totalPoints = calculateTotalPoints(gameData[teamId]);
 
     // Zapisz informację o zdjęciu
     if (!gameData[teamId].bingoPhotos) {
       gameData[teamId].bingoPhotos = {};
     }
 
-    gameData[teamId].bingoPhotos[taskId] = `/uploads/${teamId}/task_${taskId}${path.extname(req.file.originalname)}`;
+    gameData[teamId].bingoPhotos[taskId] = `/uploads/${teamId}/task_${taskId}${path.extname(req.file.filename)}`;
 
     // Zapisz zaktualizowane dane
     fs.writeFileSync(DATA_FILE, JSON.stringify(gameData), 'utf8');
@@ -190,19 +252,20 @@ app.post('/api/upload-bingo/:teamId/:taskId', upload.single('bingoPhoto'), (req,
 });
 
 // Dodaj endpoint do potwierdzania punktów przez prowadzących stacje
+const stationAttempts = new Map();
+app.use('/api/validate-station', (req, res, next) => {
+  const now = Date.now();
+  for (const [ip, entry] of stationAttempts) if (entry.until <= now) stationAttempts.delete(ip);
+  if (stationAttempts.size > 10000) return res.sendStatus(503);
+  const entry = stationAttempts.get(req.ip) || { count: 0, until: now + 60000 };
+  stationAttempts.set(req.ip, entry);
+  if (++entry.count > 20) return res.sendStatus(429);
+  next();
+});
 app.post('/api/validate-station', (req, res) => {
   const { stationPassword, teamId, stationId, points } = req.body;
-  const STATION_PASSWORDS = {
-    1: "stacjaPW",
-    2: "escaperoom",
-    3: "strzelaj",
-    4: "joga",
-    5: "hamaki",
-    6: "juwe"
-  };
-
-  // Sprawdź hasło stacji
-  if (stationPassword !== STATION_PASSWORDS[stationId]) {
+  if (!/^[1-6]$/.test(String(stationId)) || !/^[1-6]$/.test(String(teamId)) || !Number.isInteger(points) || points < 0 || points > 100) return res.sendStatus(400);
+  if (!passwordMatches(stationPassword, process.env[`STATION_${stationId}_PASSWORD`])) {
     return res.status(401).json({ error: 'Nieprawidłowe hasło stacji' });
   }
 
@@ -254,7 +317,14 @@ function calculateTotalPoints(teamData) {
 // Serwuj pliki statyczne
 app.use('/uploads', express.static(path.join(__dirname, 'public', 'uploads')));
 
+app.use((error, req, res, next) => {
+  if (req.file) fs.unlink(req.file.path, () => {});
+  res.status(error instanceof multer.MulterError || error.message?.includes('obrazów') ? 400 : 500)
+    .json({ error: 'Nie udało się przetworzyć żądania' });
+});
+
 // Uruchomienie serwera
-app.listen(PORT, () => {
+module.exports = app;
+if (require.main === module) app.listen(PORT, () => {
   console.log(`Serwer uruchomiony na porcie ${PORT}`);
 });
