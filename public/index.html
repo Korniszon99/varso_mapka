@@ -464,17 +464,15 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/leaflet.js"></script>
 <script>
   // Dane gry
-  const ADMIN_PASSWORD = "varsonalia2025"; // Hasło prowadzącego
+  let apiToken = null;
+  function apiFetch(url, options = {}) {
+    const headers = new Headers(options.headers);
+    if (apiToken) headers.set("Authorization", `Bearer ${apiToken}`);
+    return fetch(url, { ...options, headers });
+  }
 
   // Hasła dla drużyn (tymczasowe)
-  const TEAM_PASSWORDS = {
-    1: "red",  // Drużyna Czerwona
-    2: "blue", // Drużyna Niebieska
-    3: "green",   // Drużyna Zielona
-    4: "yellow",     // Drużyna Żółta
-    5: "purple", // Drużyna Fioletowa
-    6: "orange" // Drużyna Pomarańczowa
-  };
+
 
   // Stacje (lokalizacje na Polu Mokotowskim)
   const stations = [
@@ -575,11 +573,16 @@
     });
 
     // Obsługa zatwierdzenia hasła drużyny
-    document.getElementById('team-password-submit').addEventListener('click', function() {
+    document.getElementById('team-password-submit').addEventListener('click', async function() {
       const teamPasswordInput = document.getElementById('team-password-input');
       const teamId = parseInt(document.getElementById('team-password-modal').dataset.team);
       
-      if (teamPasswordInput.value === TEAM_PASSWORDS[teamId]) {
+      let response;
+      try {
+        response = await fetch('/api/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ role: 'team', teamId, password: teamPasswordInput.value }) });
+      } catch (_) { alert('Nie można połączyć się z serwerem'); return; }
+      if (response.ok) {
+        apiToken = (await response.json()).token;
         document.getElementById('team-password-modal').style.display = 'none';
         selectTeam(teamId);
       } else {
@@ -713,16 +716,22 @@
     document.getElementById('admin-panel').style.display = 'none';
     document.getElementById('team-password-modal').style.display = 'none';
     currentTeam = null;
+    apiToken = null;
 
     // Zapisz stan gry
     saveGameState();
   }
 
   // Funkcja logowania administratora
-  function loginAdmin() {
+  async function loginAdmin() {
     const password = document.getElementById('admin-password').value;
 
-    if (password === ADMIN_PASSWORD) {
+    let response;
+    try {
+      response = await fetch('/api/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ role: 'admin', password }) });
+    } catch (_) { alert('Nie można połączyć się z serwerem'); return; }
+    if (response.ok) {
+      apiToken = (await response.json()).token;
       document.getElementById('team-selection-page').style.display = 'none';
       document.getElementById('team-dashboard').style.display = 'none';
       document.getElementById('admin-panel').style.display = 'block';
@@ -909,7 +918,7 @@
       submitBtn.textContent = 'Wysyłanie...';
 
       // Wyślij zdjęcie na serwer
-      fetch(`/api/upload-bingo/${currentTeam}/${taskIndex}`, {
+      apiFetch(`/api/upload-bingo/${currentTeam}/${taskIndex}`, {
         method: 'POST',
         body: formData
       })
@@ -1072,14 +1081,7 @@
   }
 
   // Dodaj stałe hasła stacji
-  const STATION_PASSWORDS = {
-    1: "stacjaPW",
-    2: "escaperoom",
-    3: "strzelaj",
-    4: "joga",
-    5: "hamaki",
-    6: "juwe"
-  };
+
 
   // Zmodyfikowana funkcja walidacji formularza dodawania punktów
   function validateStationForm() {
@@ -1103,19 +1105,14 @@
     }
 
     // Dodaj komunikat do debugowania
-    console.log('Wysyłam dane:', {
-      stationId,
-      stationPassword,
-      points,
-      teamId: currentTeam
-    });
+
 
     // Dezaktywuj przycisk podczas przetwarzania
     const addPointsBtn = document.getElementById('add-points-btn');
     addPointsBtn.disabled = true;
     addPointsBtn.innerHTML = '<span class="loading-spinner"></span> Wysyłanie...';
 
-    fetch('/api/validate-station', {
+    apiFetch('/api/validate-station', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -1234,7 +1231,7 @@
 // Function to load game state from the server
   // Funkcja do ładowania stanu gry z serwera
   function loadGameState() {
-    fetch('/api/game-data')
+    apiFetch('/api/game-data')
             .then(response => {
               if (!response.ok) {
                 throw new Error('Nie udało się pobrać danych gry');
@@ -1266,7 +1263,8 @@
 
 // Function to save game state to the server
 function saveGameState() {
-  fetch('/api/game-data', {
+  if (!apiToken) return;
+  apiFetch('/api/game-data', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -1295,12 +1293,12 @@ function saveGameState() {
       return;
     }
 
-    fetch('/api/reset-game', {
+    apiFetch('/api/reset-game', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ adminPassword: ADMIN_PASSWORD })
+      body: JSON.stringify({})
     })
             .then(response => {
               if (!response.ok) {
